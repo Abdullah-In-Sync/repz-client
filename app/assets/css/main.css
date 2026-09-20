@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b0b0d;
+  --surface: #1a1a1d;
+  --surface-2: #232326;
+  --accent: #f5c518;
+  --accent-2: #7dd3fc;
+  --text: #f2f2f0;
+  --muted: #9b9ba1;
+  --success: #4ade80;
+  --warn: #fb7185;
+}
+
+html.light {
+  --bg: #f4f4f2;
+  --surface: #ffffff;
+  --surface-2: #ecece8;
+  --text: #121214;
+  --muted: #5c5c63;
+}
+
+html,
+body,
+#__nuxt {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: Oswald, Inter, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  @apply rounded-2xl border border-white/5 bg-[var(--surface)] shadow-lg;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold transition active:scale-[0.98];
+}
+
+.btn-primary {
+  @apply btn bg-[var(--accent)] text-black hover:brightness-110;
+}
+
+.btn-ghost {
+  @apply btn bg-[var(--surface-2)] text-[var(--text)] hover:bg-white/10;
+}
+
+.input {
+  @apply w-full rounded-xl border border-white/10 bg-[var(--surface-2)] px-3 py-2.5 text-[var(--text)] outline-none focus:border-[var(--accent)];
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

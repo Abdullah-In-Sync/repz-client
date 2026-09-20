@@ -1,75 +1,32 @@
-# Nuxt Minimal Starter
+# Repz client
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Nuxt 4 PWA for workout logging. Talks to the Repz FastAPI backend with Firebase Auth.
 
 ## Setup
 
-Make sure to install dependencies:
+```bash
+cp .env.example .env
+```
+
+Fill Firebase values (see `firebase.temp` locally — do not commit it). Keep the backend running on `http://localhost:8000`.
+
+Requires **Node 22+** (Nuxt 4). Then:
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+Open http://localhost:3000
 
-Build the application for production:
+## Auth
+
+Enable Email/Password and Google in the Firebase console. Add `localhost` under Authorized domains.
+
+## Tests
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+npx vitest run
 ```
 
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Offline set logging is queued in localStorage and flushed when back online (best-effort; the API does not take idempotency keys).
