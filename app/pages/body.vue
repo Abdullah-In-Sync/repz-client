@@ -6,19 +6,11 @@ const units = useUnits()
 const items = ref<BodyMetric[]>([])
 const weight = ref<number | null>(null)
 const date = ref(new Date().toISOString().slice(0, 10))
+const bodyValues = computed(() => reports.bodyGraph.map((p) => units.toDisplay(p.value) || 0))
 
 onMounted(async () => {
   items.value = await reports.loadBody()
 })
-
-const options = computed(() => ({
-  chart: { background: 'transparent', toolbar: { show: false } },
-  theme: { mode: 'dark' },
-  stroke: { colors: ['#7DD3FC'], curve: 'smooth' },
-  dataLabels: { enabled: false },
-  xaxis: { categories: reports.bodyGraph.map((p) => p.date.slice(5)) },
-  colors: ['#7DD3FC'],
-}))
 
 async function save() {
   const api = useApi()
@@ -35,9 +27,8 @@ async function save() {
   <div class="grid gap-4 pb-10">
     <h1 class="display text-4xl">Body</h1>
     <section class="card p-4">
-      <ClientOnly>
-        <ApexChart type="line" height="220" :options="options" :series="[{ name: 'Weight', data: reports.bodyGraph.map((p) => units.toDisplay(p.value) || 0) }]" />
-      </ClientOnly>
+      <p v-if="!bodyValues.length" class="text-sm text-[var(--muted)]">No body-weight entries yet.</p>
+      <AppSparkline v-else :values="bodyValues" color="var(--accent-2)" />
     </section>
     <form class="card grid gap-3 p-4" @submit.prevent="save">
       <input v-model="date" class="input" type="date" />

@@ -1,32 +1,17 @@
 <script setup lang="ts">
 const reports = useReportStore()
 const units = useUnits()
-await reports.loadDashboard().catch(() => {})
+const ready = ref(false)
 
-const volumeOptions = computed(() => ({
-  chart: { background: 'transparent', toolbar: { show: false } },
-  theme: { mode: 'dark' },
-  stroke: { curve: 'smooth', colors: ['#F5C518'] },
-  dataLabels: { enabled: false },
-  xaxis: { categories: reports.volume.map((p) => p.date.slice(5)) },
-  colors: ['#F5C518'],
-  grid: { borderColor: '#232326' },
-}))
-const bodyOptions = computed(() => ({
-  chart: { background: 'transparent', toolbar: { show: false } },
-  theme: { mode: 'dark' },
-  stroke: { curve: 'smooth', colors: ['#7DD3FC'] },
-  dataLabels: { enabled: false },
-  xaxis: { categories: reports.bodyGraph.map((p) => p.date.slice(5)) },
-  colors: ['#7DD3FC'],
-  grid: { borderColor: '#232326' },
-}))
-const muscleOptions = computed(() => ({
-  chart: { background: 'transparent' },
-  labels: reports.muscle.map((m) => m.body_part),
-  colors: ['#F5C518', '#7DD3FC', '#4ade80', '#fb7185', '#a78bfa', '#f97316'],
-  legend: { labels: { colors: '#9B9BA1' } },
-}))
+onMounted(async () => {
+  await reports.loadDashboard().catch(() => {})
+  ready.value = true
+})
+
+const volumeValues = computed(() => reports.volume.map((p) => p.volume || 0))
+const bodyValues = computed(() => reports.bodyGraph.map((p) => units.toDisplay(p.value) || 0))
+const hasVolume = computed(() => volumeValues.value.some((v) => v > 0))
+const muscleMax = computed(() => Math.max(...reports.muscle.map((m) => m.volume || 0), 1))
 </script>
 
 <template>
@@ -43,27 +28,35 @@ const muscleOptions = computed(() => ({
     </div>
     <section class="card p-4">
       <h2 class="mb-3 font-semibold">Volume (30d)</h2>
-      <ClientOnly>
-        <ApexChart type="line" height="220" :options="volumeOptions" :series="[{ name: 'Volume', data: reports.volume.map((p) => p.volume) }]" />
-      </ClientOnly>
+      <p v-if="!ready" class="text-sm text-[var(--muted)]">Loading…</p>
+      <p v-else-if="!hasVolume" class="text-sm text-[var(--muted)]">No volume logged yet.</p>
+      <AppSparkline v-else :values="volumeValues" />
     </section>
     <section class="card p-4">
       <h2 class="mb-3 font-semibold">Body weight ({{ units.label }})</h2>
-      <ClientOnly>
-        <ApexChart
-          type="line"
-          height="220"
-          :options="bodyOptions"
-          :series="[{ name: 'Weight', data: reports.bodyGraph.map((p) => units.toDisplay(p.value) || 0) }]"
-        />
-      </ClientOnly>
+      <p v-if="!ready" class="text-sm text-[var(--muted)]">Loading…</p>
+      <p v-else-if="!bodyValues.length" class="text-sm text-[var(--muted)]">No body-weight entries yet.</p>
+      <AppSparkline v-else :values="bodyValues" color="var(--accent-2)" />
     </section>
     <div class="grid gap-4 lg:grid-cols-2">
       <section class="card p-4">
         <h2 class="mb-3 font-semibold">Muscle distribution</h2>
-        <ClientOnly>
-          <ApexChart type="donut" height="260" :options="muscleOptions" :series="reports.muscle.map((m) => m.volume || 0)" />
-        </ClientOnly>
+        <p v-if="!ready" class="text-sm text-[var(--muted)]">Loading…</p>
+        <p v-else-if="!reports.muscle.length" class="text-sm text-[var(--muted)]">No muscle data yet.</p>
+        <ul v-else class="grid gap-2">
+          <li v-for="m in reports.muscle" :key="m.body_part">
+            <div class="mb-1 flex justify-between text-sm">
+              <span>{{ m.body_part }}</span>
+              <span class="text-[var(--muted)]">{{ Math.round(m.percent || 0) }}%</span>
+            </div>
+            <div class="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+              <div
+                class="h-full rounded-full bg-[var(--accent)]"
+                :style="{ width: `${Math.min(100, (m.volume / muscleMax) * 100)}%` }"
+              />
+            </div>
+          </li>
+        </ul>
       </section>
       <section class="card p-4">
         <h2 class="mb-3 font-semibold">Calendar</h2>

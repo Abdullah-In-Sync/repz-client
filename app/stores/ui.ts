@@ -4,7 +4,9 @@ export const useUiStore = defineStore('ui', {
     toasts: [] as { id: number; message: string }[],
     installEvent: null as null | { prompt: () => Promise<void> },
   }),
-  persist: true,
+  persist: {
+    pick: ['theme'],
+  },
   actions: {
     applyTheme() {
       if (!import.meta.client) return

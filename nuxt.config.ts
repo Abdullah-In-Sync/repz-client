@@ -41,6 +41,7 @@ export default defineNuxtConfig({
     },
   },
   pwa: {
+    disable: true,
     registerType: 'autoUpdate',
     manifest: {
       name: 'Repz',
@@ -49,35 +50,10 @@ export default defineNuxtConfig({
       theme_color: '#0B0B0D',
       background_color: '#0B0B0D',
       display: 'standalone',
-      start_url: '/',
+      start_url: '/exercises',
       icons: [
         { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
       ],
-    },
-    workbox: {
-      navigateFallback: '/',
-      runtimeCaching: [
-        {
-          urlPattern: /\/media\/gifs\/.*/i,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'exercise-gifs',
-            expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 },
-          },
-        },
-        {
-          urlPattern: /\/api\/v1\/.*/i,
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'repz-api',
-            networkTimeoutSeconds: 5,
-            expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 },
-          },
-        },
-      ],
-    },
-    client: {
-      installPrompt: true,
     },
   },
 })

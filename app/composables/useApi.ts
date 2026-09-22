@@ -6,8 +6,20 @@ export const useApi = () => {
   const toast = useUiStore()
   const auth = useAuthStore()
 
+  async function currentUser(): Promise<FirebaseUser | null> {
+    if (import.meta.client) {
+      try {
+        const { $firebaseAuth } = useNuxtApp()
+        if ($firebaseAuth.currentUser) return $firebaseAuth.currentUser
+      } catch {
+        // plugin may not be ready yet
+      }
+    }
+    return auth.firebaseUser as FirebaseUser | null
+  }
+
   async function token(): Promise<string | null> {
-    const user = auth.firebaseUser as FirebaseUser | null
+    const user = await currentUser()
     if (!user) return null
     return user.getIdToken()
   }
@@ -26,8 +38,9 @@ export const useApi = () => {
       })
     } catch (error: unknown) {
       const err = error as { status?: number; data?: { detail?: string } }
-      if (err.status === 401 && auth.firebaseUser) {
-        const fresh = await (auth.firebaseUser as FirebaseUser).getIdToken(true)
+      const user = await currentUser()
+      if (err.status === 401 && user) {
+        const fresh = await user.getIdToken(true)
         headers.Authorization = `Bearer ${fresh}`
         try {
           return await $fetch<T>(`${config.public.apiBase}/api/v1${path}`, {
@@ -35,11 +48,16 @@ export const useApi = () => {
             headers,
           })
         } catch {
-          await auth.logout()
+          auth.firebaseUser = null
+          auth.profile = null
+          await navigateTo('/login', { replace: true })
           throw error
         }
       }
-      toast.pushToast(err.data?.detail || 'Request failed')
+      const missingAuth = err.status === 401 && !auth.firebaseUser
+      if (!import.meta.server && !missingAuth) {
+        toast.pushToast(err.data?.detail || 'Request failed')
+      }
       throw error
     }
   }

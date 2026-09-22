@@ -49,6 +49,8 @@ async function exportData() {
     </form>
     <button class="btn-ghost" @click="ui.toggleTheme">Theme: {{ ui.theme }}</button>
     <button class="btn-ghost" @click="exportData">Export data</button>
-    <button class="btn-ghost text-[var(--warn)]" @click="auth.logout()">Sign out</button>
+    <button class="btn-ghost mb-16 text-[var(--warn)]" type="button" @click="void auth.logout()">
+      Sign out
+    </button>
   </div>
 </template>

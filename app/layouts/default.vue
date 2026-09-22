@@ -5,6 +5,7 @@ const route = useRoute()
 const workout = useWorkoutStore()
 
 onMounted(async () => {
+  ui.toasts = []
   ui.applyTheme()
   if (!auth.ready) await auth.init()
   window.addEventListener('online', () => useOfflineQueue().flush())
@@ -58,7 +59,7 @@ const hideNav = computed(() => ['/login', '/register'].includes(route.path))
       <div class="min-h-dvh flex-1 pb-24 lg:pb-8">
         <header v-if="!hideNav" class="flex items-center justify-between px-4 py-4 lg:px-8">
           <NuxtLink to="/" class="display text-2xl text-[var(--accent)] lg:hidden">REPZ</NuxtLink>
-          <div class="ml-auto text-sm text-[var(--muted)]">{{ auth.profile?.display_name || auth.firebaseUser?.email }}</div>
+          <div class="ml-auto text-sm text-[var(--muted)]">{{ auth.profile?.display_name || auth.profile?.email }}</div>
         </header>
         <main class="px-4 lg:px-8">
           <slot />
