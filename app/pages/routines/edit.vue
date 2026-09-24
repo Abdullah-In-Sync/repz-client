@@ -3,6 +3,7 @@ const route = useRoute()
 const store = useRoutineStore()
 const exercises = useExerciseStore()
 const addId = computed(() => String(route.query.add || ''))
+const showPicker = ref(false)
 
 onMounted(async () => {
   await exercises.load()
@@ -37,16 +38,16 @@ function move(i: number, dir: number) {
   store.draft.exercises = copy
 }
 
-function add(id: string) {
-  const ex = exercises.items.find((e) => e.id === id)
-  store.draft?.exercises.push({
-    exercise_id: id,
+function handleSelect(payload: { id: string; name: string }) {
+  if (!store.draft) return
+  store.draft.exercises.push({
+    exercise_id: payload.id,
     order_index: store.draft.exercises.length,
     target_sets: 3,
     target_reps_range: '8-12',
     rest_seconds: 90,
     notes: null,
-    exercise_name: ex?.name,
+    exercise_name: payload.name,
   })
 }
 
@@ -61,8 +62,13 @@ async function save() {
     <h1 class="display text-4xl">{{ store.draft.id ? 'Edit routine' : 'New routine' }}</h1>
     <input v-model="store.draft.name" class="input" placeholder="Routine name" />
     <textarea v-model="store.draft.description" class="input" placeholder="Description" />
+
     <div class="grid gap-2">
-      <article v-for="(item, i) in store.draft.exercises" :key="item.exercise_id + i" class="card flex items-center gap-3 p-3">
+      <article
+        v-for="(item, i) in store.draft.exercises"
+        :key="item.exercise_id + i"
+        class="card flex items-center gap-3 p-3"
+      >
         <div class="flex-1">
           <p class="font-semibold">{{ item.exercise_name || item.exercise_id }}</p>
           <div class="mt-2 grid grid-cols-3 gap-2">
@@ -78,13 +84,14 @@ async function save() {
         </div>
       </article>
     </div>
-    <details class="card p-4">
-      <summary>Add exercise</summary>
-      <input v-model="exercises.query.search" class="input my-2" placeholder="Search" @keyup.enter="exercises.load()" />
-      <button v-for="ex in exercises.items" :key="ex.id" class="block w-full py-2 text-left text-sm" @click="add(ex.id)">
-        {{ ex.name }}
-      </button>
-    </details>
-    <button class="btn-primary" @click="save">Save routine</button>
+
+    <button class="btn-primary" @click="showPicker = true">+ Add Exercise</button>
+    <button class="btn-ghost" @click="save">Save routine</button>
+
+    <ExercisePickerModal
+      :open="showPicker"
+      @close="showPicker = false"
+      @select="handleSelect"
+    />
   </div>
 </template>
