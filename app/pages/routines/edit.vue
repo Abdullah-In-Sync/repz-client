@@ -6,6 +6,9 @@ const routineReturnTo = computed(() => encodeURIComponent(route.fullPath))
 const store = useRoutineStore()
 const exercises = useExerciseStore()
 const units = useUnits()
+const ui = useUiStore()
+const saving = ref(false)
+const titleInput = ref<HTMLInputElement | null>(null)
 const addId = computed(() => String(route.query.add || ''))
 const showPicker = ref(false)
 const failedImages = ref<Set<string>>(new Set())
@@ -126,7 +129,7 @@ onMounted(async () => {
   if (route.query.id) {
     const r = await store.getOne(String(route.query.id))
     store.startDraft(r)
-  } else if (!store.draft) {
+  } else {
     store.startDraft()
   }
   if (addId.value && store.draft) {
@@ -203,10 +206,33 @@ function imageFailed(id: string) {
   failedImages.value = new Set([...failedImages.value, id])
 }
 
+function prepareDraftForSave(): boolean {
+  if (!store.draft) return false
+  for (const item of store.draft.exercises) {
+    ensureSetTargets(item)
+  }
+  const name = store.draft.name.trim()
+  if (!name) {
+    ui.pushToast('Enter a routine title before saving')
+    titleInput.value?.focus()
+    return false
+  }
+  store.draft.name = name
+  return true
+}
+
 async function save() {
-  if (!store.draft?.name?.trim()) return
-  await store.saveDraft()
-  await navigateTo('/routines')
+  if (saving.value || !store.draft) return
+  if (!prepareDraftForSave()) return
+  saving.value = true
+  try {
+    await store.saveDraft()
+    await navigateTo('/routines')
+  } catch {
+    /* toast handled by useApi */
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -217,13 +243,18 @@ async function save() {
       <h1 class="text-lg font-semibold">
         {{ store.draft.id ? 'Edit Routine' : 'New Routine' }}
       </h1>
-      <button class="btn-primary" @click="save">Save</button>
+      <button type="button" class="btn-primary" :disabled="saving" @click="save">
+        {{ saving ? 'Saving…' : 'Save' }}
+      </button>
     </div>
 
     <input
+      ref="titleInput"
       v-model="store.draft.name"
       class="input text-xl font-semibold"
       placeholder="Routine title"
+      required
+      @keydown.enter.prevent="save"
     />
 
     <div class="grid gap-4">
@@ -398,8 +429,8 @@ async function save() {
         <button class="btn-primary w-full" @click="showPicker = true">
           + Add exercise
         </button>
-        <button class="btn-ghost w-full" @click="save">
-          Save routine
+        <button type="button" class="btn-ghost w-full" :disabled="saving" @click="save">
+          {{ saving ? 'Saving…' : 'Save routine' }}
         </button>
       </div>
     </div>

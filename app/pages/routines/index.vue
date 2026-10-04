@@ -4,25 +4,29 @@ const workout = useWorkoutStore()
 onMounted(() => store.load())
 
 async function startRoutine(id: string) {
-  const routine = await store.getOne(id)
-  const last = await store.lastLogged(id)
-  const exStore = useExerciseStore()
-  const exercises = []
-  for (const item of routine.exercises) {
-    try {
-      exercises.push(await exStore.getOne(item.exercise_id))
-    } catch {
-      /* skip */
+  try {
+    const routine = await store.getOne(id)
+    const last = await store.lastLogged(id)
+    const exStore = useExerciseStore()
+    const exercises = []
+    for (const item of routine.exercises) {
+      try {
+        exercises.push(await exStore.getOne(item.exercise_id))
+      } catch {
+        /* skip */
+      }
     }
+    await workout.start({
+      name: routine.name,
+      routineId: routine.id,
+      lastLogged: last,
+      exercises,
+      routineExercises: routine.exercises,
+    })
+    if (workout.session) await navigateTo(`/workout/${workout.session.id}`)
+  } catch {
+    /* useApi shows toast for API/network errors */
   }
-  await workout.start({
-    name: routine.name,
-    routineId: routine.id,
-    lastLogged: last,
-    exercises,
-    routineExercises: routine.exercises,
-  })
-  if (workout.session) await navigateTo(`/workout/${workout.session.id}`)
 }
 </script>
 

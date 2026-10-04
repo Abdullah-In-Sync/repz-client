@@ -96,6 +96,7 @@ export interface Routine {
 export interface LastLoggedSet {
   exercise_id: string
   exercise_name: string
+  set_number?: number | null
   weight_kg: number | null
   reps: number | null
   rpe: number | null
@@ -218,6 +219,11 @@ export interface DraftSet {
   duration_seconds: number | null
   distance_km: number | null
   rest_seconds?: number | null
+  previous_weight_kg?: number | null
+  previous_reps?: number | null
+  previous_rpe?: number | null
+  previous_duration_seconds?: number | null
+  previous_distance_km?: number | null
   is_warmup: boolean
   is_completed: boolean
 }

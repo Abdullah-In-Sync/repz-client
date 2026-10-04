@@ -34,32 +34,52 @@ export const useRoutineStore = defineStore('routines', {
     async saveDraft() {
       if (!this.draft) return
       const api = useApi()
+      const name = this.draft.name.trim()
+      if (!name) return
+
+      const exercises = this.draft.exercises.map((e, i) => {
+        const setTargets = e.set_targets?.length
+          ? e.set_targets.map((set) => ({
+              reps_range: set.reps_range ?? null,
+              weight_kg: set.weight_kg ?? null,
+              rest_seconds: set.rest_seconds ?? null,
+            }))
+          : null
+        const firstSet = setTargets?.[0]
+        const targetSets = Math.max(1, setTargets?.length || e.target_sets || 1)
+
+        return {
+          exercise_id: e.exercise_id,
+          order_index: i,
+          target_sets: targetSets,
+          target_reps_range: firstSet?.reps_range ?? e.target_reps_range,
+          target_duration_seconds: e.target_duration_seconds,
+          target_distance_km: e.target_distance_km,
+          target_weight_kg: firstSet?.weight_kg ?? e.target_weight_kg,
+          rest_seconds: firstSet?.rest_seconds ?? e.rest_seconds,
+          notes: e.notes,
+          set_targets: setTargets,
+        }
+      })
+
       const body = {
-        name: this.draft.name,
+        name,
         description: this.draft.description || null,
         folder: this.draft.folder || null,
-        exercises: this.draft.exercises.map((e, i) => {
-          const firstSet = e.set_targets?.[0]
-          return {
-            exercise_id: e.exercise_id,
-            order_index: i,
-            target_sets: e.set_targets?.length || e.target_sets,
-            target_reps_range: firstSet?.reps_range ?? e.target_reps_range,
-            target_duration_seconds: e.target_duration_seconds,
-            target_distance_km: e.target_distance_km,
-            target_weight_kg: firstSet?.weight_kg ?? e.target_weight_kg,
-            rest_seconds: firstSet?.rest_seconds ?? e.rest_seconds,
-            notes: e.notes,
-            set_targets: e.set_targets,
-          }
-        }),
+        exercises,
       }
+
       if (this.draft.id) {
         await api.patch(`/routines/${this.draft.id}`, body)
       } else {
-        await api.post('/routines', body)
+        const created = await api.post<Routine>('/routines', body)
+        this.draft.id = created.id
       }
-      await this.load()
+      try {
+        await this.load()
+      } catch {
+        /* routine saved; list refresh can fail independently */
+      }
     },
     async remove(id: string) {
       const api = useApi()

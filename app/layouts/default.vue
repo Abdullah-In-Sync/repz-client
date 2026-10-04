@@ -23,7 +23,10 @@ const tabs = [
   { to: '/settings', label: 'Profile', icon: '●' },
 ]
 
-const hideNav = computed(() => ['/login', '/register'].includes(route.path))
+const immersiveWorkout = computed(() => /^\/workout\/[^/]+$/.test(route.path))
+const hideNav = computed(
+  () => ['/login', '/register'].includes(route.path) || immersiveWorkout.value,
+)
 </script>
 
 <template>
@@ -57,11 +60,11 @@ const hideNav = computed(() => ['/login', '/register'].includes(route.path))
         </nav>
       </aside>
       <div class="min-h-dvh flex-1 pb-24 lg:pb-8">
-        <header v-if="!hideNav" class="flex items-center justify-between px-4 py-4 lg:px-8">
+        <header v-if="!hideNav && !immersiveWorkout" class="flex items-center justify-between px-4 py-4 lg:px-8">
           <NuxtLink to="/" class="display text-2xl text-[var(--accent)] lg:hidden">REPZ</NuxtLink>
           <div class="ml-auto text-sm text-[var(--muted)]">{{ auth.profile?.display_name || auth.profile?.email }}</div>
         </header>
-        <main class="px-4 lg:px-8">
+        <main :class="immersiveWorkout ? 'px-0 lg:px-0' : 'px-4 lg:px-8'">
           <slot />
         </main>
       </div>

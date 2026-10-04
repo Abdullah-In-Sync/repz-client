@@ -1,4 +1,5 @@
 import type { DraftSet, Exercise, LastLoggedSet, RoutineExercise, Workout } from '~/types/api'
+import { lastLoggedForSet, prefillSetFields } from '~/utils/workoutPrefill'
 
 export const useWorkoutStore = defineStore('workout', {
   state: () => ({
@@ -11,6 +12,8 @@ export const useWorkoutStore = defineStore('workout', {
       is_load_based: boolean
       is_reps_based: boolean
       rest_seconds: number
+      rest_timer_enabled: boolean
+      notes: string | null
       sets: DraftSet[]
     }[],
     startedAt: 0,
@@ -40,12 +43,22 @@ export const useWorkoutStore = defineStore('workout', {
       })
       this.startedAt = Date.now()
       this.blocks = (opts.exercises || []).map((ex) => {
-        const last = opts.lastLogged?.find((l) => l.exercise_id === ex.id)
         const plan = opts.routineExercises?.find((r) => r.exercise_id === ex.id)
         const setCount = Math.max(1, plan?.set_targets?.length || plan?.target_sets || 1)
         const restSeconds = plan?.rest_seconds ?? 90
         const makeSet = (setNumber: number): DraftSet => {
           const setTarget = plan?.set_targets?.[setNumber - 1]
+          const previous = lastLoggedForSet(opts.lastLogged, ex.id, setNumber)
+          const filled = prefillSetFields({
+            exerciseId: ex.id,
+            setNumber,
+            plan,
+            setTarget,
+            lastLogged: opts.lastLogged,
+            isTimeBased: ex.is_time_based,
+            isDistanceBased: ex.is_distance_based,
+            defaultDurationSeconds: ex.is_time_based ? 1200 : null,
+          })
           return {
             localId: crypto.randomUUID(),
             exercise_id: ex.id,
@@ -55,13 +68,17 @@ export const useWorkoutStore = defineStore('workout', {
             is_load_based: ex.is_load_based,
             is_reps_based: ex.is_reps_based,
             set_number: setNumber,
-            weight_kg: setTarget?.weight_kg ?? last?.weight_kg ?? plan?.target_weight_kg ?? null,
-            reps: last?.reps ?? null,
-            rpe: last?.rpe ?? null,
-            duration_seconds:
-              last?.duration_seconds ?? plan?.target_duration_seconds ?? (ex.is_time_based ? 1200 : null),
-            distance_km: last?.distance_km ?? plan?.target_distance_km ?? null,
+            weight_kg: filled.weight_kg,
+            reps: filled.reps,
+            rpe: filled.rpe,
+            duration_seconds: filled.duration_seconds,
+            distance_km: filled.distance_km,
             rest_seconds: setTarget?.rest_seconds ?? restSeconds,
+            previous_weight_kg: previous?.weight_kg ?? null,
+            previous_reps: previous?.reps ?? null,
+            previous_rpe: previous?.rpe ?? null,
+            previous_duration_seconds: previous?.duration_seconds ?? null,
+            previous_distance_km: previous?.distance_km ?? null,
             is_warmup: false,
             is_completed: false,
           }
@@ -74,6 +91,8 @@ export const useWorkoutStore = defineStore('workout', {
           is_load_based: ex.is_load_based,
           is_reps_based: ex.is_reps_based,
           rest_seconds: restSeconds,
+          rest_timer_enabled: false,
+          notes: plan?.notes ?? null,
           sets: Array.from({ length: setCount }, (_, i) => makeSet(i + 1)),
         }
       })
@@ -101,6 +120,26 @@ export const useWorkoutStore = defineStore('workout', {
         is_completed: false,
       })
     },
+    async toggleSetDone(localId: string, done: boolean) {
+      if (done) await this.completeSet(localId)
+      else await this.uncompleteSet(localId)
+    },
+    async uncompleteSet(localId: string) {
+      const api = useApi()
+      if (!this.session) return
+      for (const block of this.blocks) {
+        const set = block.sets.find((s) => s.localId === localId)
+        if (!set?.is_completed) continue
+        set.is_completed = false
+        if (set.serverId && navigator.onLine) {
+          try {
+            await api.patch(`/workouts/${this.session.id}/sets/${set.serverId}`, { is_completed: false })
+          } catch {
+            /* keep local state */
+          }
+        }
+      }
+    },
     async completeSet(localId: string) {
       const api = useApi()
       const queue = useOfflineQueue()
@@ -108,7 +147,7 @@ export const useWorkoutStore = defineStore('workout', {
       if (!this.session) return
       for (const block of this.blocks) {
         const set = block.sets.find((s) => s.localId === localId)
-        if (!set) continue
+        if (!set || set.is_completed) continue
         set.is_completed = true
         const payload = {
           exercise_id: set.exercise_id,
@@ -131,7 +170,9 @@ export const useWorkoutStore = defineStore('workout', {
             queue.enqueue({ workoutId: this.session.id, payload })
           }
         }
-        rest.start(set.rest_seconds ?? block.rest_seconds ?? 90)
+        if (block.rest_timer_enabled) {
+          rest.start(set.rest_seconds ?? block.rest_seconds ?? 90)
+        }
       }
     },
     async deleteSet(localId: string) {
