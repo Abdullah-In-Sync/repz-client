@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Exercise } from '~/types/api'
 
+const route = useRoute()
 const store = useExerciseStore()
 const selected = ref<Exercise | null>(null)
 const editing = ref(false)
@@ -22,12 +23,44 @@ const form = reactive({
   is_distance_based: false,
 })
 
+const returnTo = computed(() => {
+  const value = route.query.returnTo
+  return typeof value === 'string' && value.startsWith('/') ? value : null
+})
+
+async function openFromRoute() {
+  const id = typeof route.query.id === 'string' ? route.query.id : ''
+  if (!id) return
+  const wantEdit = route.query.edit === '1' || route.query.edit === 'true'
+  try {
+    const item = await store.getOne(id)
+    open(item)
+    if (wantEdit) startEdit()
+  } catch {
+    /* ignore */
+  }
+}
+
+function closeDetail() {
+  selected.value = null
+  editing.value = false
+  if (returnTo.value) void navigateTo(returnTo.value)
+}
+
 onMounted(async () => {
   const auth = useAuthStore()
   await auth.init()
   void store.loadFilters()
   void store.load()
+  await openFromRoute()
 })
+
+watch(
+  () => [route.query.id, route.query.edit],
+  () => {
+    void openFromRoute()
+  },
+)
 
 function applySearch() {
   store.query.offset = 0
@@ -104,6 +137,7 @@ async function saveEdit() {
     selected.value = updated
     editing.value = false
     await store.load()
+    if (returnTo.value) await navigateTo(returnTo.value)
   } finally {
     saving.value = false
   }
@@ -187,7 +221,12 @@ async function createCustom() {
         @click="open(item)"
       >
         <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-[var(--surface-2)] text-xs text-[var(--muted)]">
-          <img v-if="item.gif_url" :src="item.gif_url" alt="" class="h-full w-full object-cover" />
+          <img
+            v-if="item.gif_url"
+            :src="exerciseGifSrc(item.gif_url, item.updated_at)!"
+            alt=""
+            class="h-full w-full object-cover"
+          />
           <span v-else>GIF</span>
         </div>
         <div>
@@ -217,11 +256,11 @@ async function createCustom() {
       </button>
     </div>
 
-    <div v-if="selected" class="fixed inset-0 z-30 bg-black/70 p-4" @click.self="selected = null">
+    <div v-if="selected" class="fixed inset-0 z-30 bg-black/70 p-4" @click.self="closeDetail">
       <div class="card mx-auto max-h-[90dvh] max-w-lg overflow-y-auto p-5">
         <img
           v-if="selected.gif_url && !gifFailed && !editing"
-          :src="selected.gif_url"
+          :src="exerciseGifSrc(selected.gif_url, selected.updated_at)!"
           class="mb-4 w-full rounded-xl"
           alt=""
           @error="hideBrokenGif"
@@ -268,7 +307,13 @@ async function createCustom() {
             <input class="input mt-1" type="file" accept="image/*" @change="onGifPick" />
           </label>
           <div class="flex gap-2">
-            <button type="button" class="btn-ghost" @click="editing = false">Cancel</button>
+            <button
+              type="button"
+              class="btn-ghost"
+              @click="returnTo ? closeDetail() : (editing = false)"
+            >
+              Cancel
+            </button>
             <button type="submit" class="btn-primary flex-1" :disabled="saving">{{ saving ? 'Saving…' : 'Save' }}</button>
           </div>
         </form>

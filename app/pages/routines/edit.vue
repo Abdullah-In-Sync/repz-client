@@ -2,8 +2,10 @@
 import type { Exercise, RoutineExercise } from '~/types/api'
 
 const route = useRoute()
+const routineReturnTo = computed(() => encodeURIComponent(route.fullPath))
 const store = useRoutineStore()
 const exercises = useExerciseStore()
+const units = useUnits()
 const addId = computed(() => String(route.query.add || ''))
 const showPicker = ref(false)
 const failedImages = ref<Set<string>>(new Set())
@@ -26,14 +28,14 @@ function isCardio(id: string): boolean {
 }
 
 async function ensureExercise(id: string): Promise<Exercise | undefined> {
-  const cached = exerciseFor(id)
-  if (cached) return cached
   try {
     const ex = await exercises.getOne(id)
     exerciseCache.value = { ...exerciseCache.value, [id]: ex }
+    const listIdx = exercises.items.findIndex((e) => e.id === id)
+    if (listIdx >= 0) exercises.items[listIdx] = ex
     return ex
   } catch {
-    return undefined
+    return exerciseFor(id)
   }
 }
 
@@ -47,6 +49,7 @@ function newLine(exerciseId: string, orderIndex: number, ex?: Exercise): Routine
     target_reps_range: cardio ? null : '8-12',
     target_duration_seconds: resolved?.is_time_based ? 1200 : null,
     target_distance_km: resolved?.is_distance_based ? 3 : null,
+    target_weight_kg: null,
     rest_seconds: cardio ? 60 : 90,
     notes: null,
     exercise_name: resolved?.name,
@@ -91,6 +94,11 @@ onMounted(async () => {
   draftReady.value = true
 })
 
+onActivated(async () => {
+  if (!store.draft) return
+  await hydrateDraftExercises()
+})
+
 function move(i: number, dir: number) {
   if (!store.draft) return
   const j = i + dir
@@ -114,7 +122,7 @@ function thumbFor(id: string): string | null {
   const ex = exerciseFor(id)
   if (!ex?.gif_url) return null
   if (failedImages.value.has(id)) return null
-  return ex.gif_url
+  return exerciseGifSrc(ex.gif_url, ex.updated_at)
 }
 
 function muscleFor(id: string): string | null {
@@ -134,8 +142,18 @@ function trackingLabel(id: string): string {
   if (ex.is_time_based) parts.push('time')
   if (ex.is_distance_based) parts.push('distance')
   if (ex.is_load_based) parts.push('load')
-  if (ex.is_reps_based && !ex.is_time_based) parts.push('reps')
+  if (ex.is_reps_based) parts.push('reps')
   return parts.join(' · ')
+}
+
+function showReps(id: string): boolean {
+  const ex = exerciseFor(id)
+  if (!ex) return true
+  return ex.is_reps_based
+}
+
+function showLoad(id: string): boolean {
+  return !!exerciseFor(id)?.is_load_based
 }
 
 function imageFailed(id: string) {
@@ -185,9 +203,17 @@ async function save() {
           </div>
 
           <div class="min-w-0 flex-1">
-            <p class="truncate text-base font-semibold text-[var(--accent)]">
-              {{ displayName(item) }}
-            </p>
+            <div class="flex min-w-0 items-center gap-2">
+              <p class="truncate text-base font-semibold text-[var(--accent)]">
+                {{ displayName(item) }}
+              </p>
+              <NuxtLink
+                :to="`/exercises?id=${item.exercise_id}&edit=1&returnTo=${routineReturnTo}`"
+                class="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--accent)]"
+              >
+                Edit
+              </NuxtLink>
+            </div>
             <p class="truncate text-xs text-[var(--muted)]">
               <span v-if="muscleFor(item.exercise_id)">{{ muscleFor(item.exercise_id) }}</span>
               <span v-if="muscleFor(item.exercise_id) && equipmentFor(item.exercise_id)"> · </span>
@@ -260,20 +286,54 @@ async function save() {
             <span>s</span>
           </div>
 
-          <div class="mt-4 grid grid-cols-[56px_1fr_1fr] gap-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+          <div
+            class="mt-4 grid gap-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]"
+            :class="
+              showLoad(item.exercise_id) && showReps(item.exercise_id)
+                ? 'grid-cols-[48px_1fr_1fr_1fr]'
+                : showLoad(item.exercise_id)
+                  ? 'grid-cols-[48px_1fr_1fr]'
+                  : 'grid-cols-[48px_1fr_1fr]'
+            "
+          >
             <span>Sets</span>
-            <span>Reps</span>
+            <span v-if="showReps(item.exercise_id)">Reps</span>
+            <span v-if="showLoad(item.exercise_id)">Load ({{ units.label }})</span>
             <span>Rest (s)</span>
           </div>
 
-          <div class="mt-2 grid grid-cols-[56px_1fr_1fr] gap-2">
+          <div
+            class="mt-2 grid gap-2"
+            :class="
+              showLoad(item.exercise_id) && showReps(item.exercise_id)
+                ? 'grid-cols-[48px_1fr_1fr_1fr]'
+                : showLoad(item.exercise_id)
+                  ? 'grid-cols-[48px_1fr_1fr]'
+                  : 'grid-cols-[48px_1fr_1fr]'
+            "
+          >
             <div class="grid h-11 place-items-center rounded-lg bg-[var(--surface)] font-semibold">
               {{ item.target_sets || 1 }}
             </div>
             <input
+              v-if="showReps(item.exercise_id)"
               v-model="item.target_reps_range"
               class="input h-11 text-center"
               placeholder="8-12"
+            />
+            <input
+              v-if="showLoad(item.exercise_id)"
+              class="input h-11 text-center"
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              :value="units.toDisplay(item.target_weight_kg) ?? ''"
+              @input="
+                item.target_weight_kg = units.toKg(
+                  Number(($event.target as HTMLInputElement).value) || null,
+                )
+              "
             />
             <input
               v-model.number="item.rest_seconds"

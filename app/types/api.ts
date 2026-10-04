@@ -68,6 +68,7 @@ export interface RoutineExercise {
   target_reps_range: string | null
   target_duration_seconds: number | null
   target_distance_km: number | null
+  target_weight_kg: number | null
   rest_seconds: number | null
   notes: string | null
   exercise_name?: string | null

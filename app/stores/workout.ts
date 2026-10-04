@@ -54,7 +54,7 @@ export const useWorkoutStore = defineStore('workout', {
           is_load_based: ex.is_load_based,
           is_reps_based: ex.is_reps_based,
           set_number: setNumber,
-          weight_kg: last?.weight_kg ?? null,
+          weight_kg: last?.weight_kg ?? plan?.target_weight_kg ?? null,
           reps: last?.reps ?? null,
           rpe: last?.rpe ?? null,
           duration_seconds:

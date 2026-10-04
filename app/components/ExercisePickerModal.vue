@@ -3,6 +3,7 @@ interface Exercise {
   id: string
   name: string
   gif_url: string | null
+  updated_at?: string
   target: string | null
   body_part: string | null
   equipment: string | null
@@ -237,7 +238,7 @@ function imageFailed(id: string) {
               <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--surface)]">
                 <img
                   v-if="item.gif_url && !failedImages.has(item.id)"
-                  :src="item.gif_url"
+                  :src="exerciseGifSrc(item.gif_url, item.updated_at)!"
                   :alt="item.name"
                   class="h-full w-full object-cover"
                   loading="lazy"
