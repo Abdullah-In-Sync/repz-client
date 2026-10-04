@@ -8,6 +8,8 @@ export const useWorkoutStore = defineStore('workout', {
       exercise_name: string
       is_time_based: boolean
       is_distance_based: boolean
+      is_load_based: boolean
+      is_reps_based: boolean
       rest_seconds: number
       sets: DraftSet[]
     }[],
@@ -38,6 +40,8 @@ export const useWorkoutStore = defineStore('workout', {
           exercise_name: ex.name,
           is_time_based: ex.is_time_based,
           is_distance_based: ex.is_distance_based,
+          is_load_based: ex.is_load_based,
+          is_reps_based: ex.is_reps_based,
           rest_seconds: 90,
           sets: [
             {
@@ -46,6 +50,8 @@ export const useWorkoutStore = defineStore('workout', {
               exercise_name: ex.name,
               is_time_based: ex.is_time_based,
               is_distance_based: ex.is_distance_based,
+              is_load_based: ex.is_load_based,
+              is_reps_based: ex.is_reps_based,
               set_number: 1,
               weight_kg: last?.weight_kg ?? null,
               reps: last?.reps ?? null,
@@ -69,6 +75,8 @@ export const useWorkoutStore = defineStore('workout', {
         exercise_name: block.exercise_name,
         is_time_based: block.is_time_based,
         is_distance_based: block.is_distance_based,
+        is_load_based: block.is_load_based,
+        is_reps_based: block.is_reps_based,
         set_number: block.sets.length + 1,
         weight_kg: prev?.weight_kg ?? null,
         reps: prev?.reps ?? null,

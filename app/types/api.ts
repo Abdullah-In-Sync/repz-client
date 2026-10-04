@@ -25,7 +25,7 @@ export interface Paginated<T> {
 
 export interface Exercise {
   id: string
-  source: 'workoutx' | 'custom'
+  source: 'catalog' | 'custom'
   external_id: string | null
   name: string
   body_part: string | null
@@ -47,6 +47,8 @@ export interface Exercise {
   created_by_user_id: string | null
   is_time_based: boolean
   is_distance_based: boolean
+  is_load_based: boolean
+  is_reps_based: boolean
   description: string | null
   created_at: string
   updated_at: string
@@ -197,6 +199,8 @@ export interface DraftSet {
   exercise_name: string
   is_time_based: boolean
   is_distance_based: boolean
+  is_load_based: boolean
+  is_reps_based: boolean
   set_number: number
   weight_kg: number | null
   reps: number | null

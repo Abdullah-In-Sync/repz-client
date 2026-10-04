@@ -56,5 +56,27 @@ export const useExerciseStore = defineStore('exercises', {
       const api = useApi()
       return api.post<Exercise>('/exercises/custom', payload)
     },
+    async update(id: string, payload: Partial<Exercise>) {
+      const api = useApi()
+      return api.patch<Exercise>(`/exercises/${id}`, payload)
+    },
+    async remove(id: string) {
+      const api = useApi()
+      await api.del(`/exercises/${id}`)
+    },
+    async uploadGif(id: string, file: File) {
+      const config = useRuntimeConfig()
+      const auth = useAuthStore()
+      const user = auth.firebaseUser
+      if (!user) throw new Error('Not signed in')
+      const token = await user.getIdToken()
+      const body = new FormData()
+      body.append('file', file)
+      return $fetch<Exercise>(`${config.public.apiBase}/api/v1/exercises/${id}/gif`, {
+        method: 'POST',
+        body,
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    },
   },
 })
