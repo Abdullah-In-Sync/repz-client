@@ -1,4 +1,4 @@
-import type { DraftSet, Exercise, LastLoggedSet, Workout } from '~/types/api'
+import type { DraftSet, Exercise, LastLoggedSet, RoutineExercise, Workout } from '~/types/api'
 
 export const useWorkoutStore = defineStore('workout', {
   state: () => ({
@@ -26,7 +26,13 @@ export const useWorkoutStore = defineStore('workout', {
         .reduce((sum, set) => sum + (set.weight_kg || 0) * (set.reps || 0), 0),
   },
   actions: {
-    async start(opts: { name?: string; routineId?: string; lastLogged?: LastLoggedSet[]; exercises?: Exercise[] }) {
+    async start(opts: {
+      name?: string
+      routineId?: string
+      lastLogged?: LastLoggedSet[]
+      exercises?: Exercise[]
+      routineExercises?: RoutineExercise[]
+    }) {
       const api = useApi()
       this.session = await api.post<Workout>('/workouts', {
         name: opts.name,
@@ -35,6 +41,28 @@ export const useWorkoutStore = defineStore('workout', {
       this.startedAt = Date.now()
       this.blocks = (opts.exercises || []).map((ex) => {
         const last = opts.lastLogged?.find((l) => l.exercise_id === ex.id)
+        const plan = opts.routineExercises?.find((r) => r.exercise_id === ex.id)
+        const cardio = ex.is_time_based || ex.is_distance_based
+        const setCount = Math.max(1, plan?.target_sets ?? (cardio ? 1 : 3))
+        const restSeconds = plan?.rest_seconds ?? 90
+        const makeSet = (setNumber: number): DraftSet => ({
+          localId: crypto.randomUUID(),
+          exercise_id: ex.id,
+          exercise_name: ex.name,
+          is_time_based: ex.is_time_based,
+          is_distance_based: ex.is_distance_based,
+          is_load_based: ex.is_load_based,
+          is_reps_based: ex.is_reps_based,
+          set_number: setNumber,
+          weight_kg: last?.weight_kg ?? null,
+          reps: last?.reps ?? null,
+          rpe: last?.rpe ?? null,
+          duration_seconds:
+            last?.duration_seconds ?? plan?.target_duration_seconds ?? (ex.is_time_based ? 1200 : null),
+          distance_km: last?.distance_km ?? plan?.target_distance_km ?? null,
+          is_warmup: false,
+          is_completed: false,
+        })
         return {
           exercise_id: ex.id,
           exercise_name: ex.name,
@@ -42,26 +70,8 @@ export const useWorkoutStore = defineStore('workout', {
           is_distance_based: ex.is_distance_based,
           is_load_based: ex.is_load_based,
           is_reps_based: ex.is_reps_based,
-          rest_seconds: 90,
-          sets: [
-            {
-              localId: crypto.randomUUID(),
-              exercise_id: ex.id,
-              exercise_name: ex.name,
-              is_time_based: ex.is_time_based,
-              is_distance_based: ex.is_distance_based,
-              is_load_based: ex.is_load_based,
-              is_reps_based: ex.is_reps_based,
-              set_number: 1,
-              weight_kg: last?.weight_kg ?? null,
-              reps: last?.reps ?? null,
-              rpe: last?.rpe ?? null,
-              duration_seconds: last?.duration_seconds ?? null,
-              distance_km: last?.distance_km ?? null,
-              is_warmup: false,
-              is_completed: false,
-            },
-          ],
+          rest_seconds: restSeconds,
+          sets: Array.from({ length: setCount }, (_, i) => makeSet(i + 1)),
         }
       })
     },

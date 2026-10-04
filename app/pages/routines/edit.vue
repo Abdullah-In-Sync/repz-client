@@ -1,13 +1,82 @@
 <script setup lang="ts">
+import type { Exercise, RoutineExercise } from '~/types/api'
+
 const route = useRoute()
 const store = useRoutineStore()
 const exercises = useExerciseStore()
 const addId = computed(() => String(route.query.add || ''))
 const showPicker = ref(false)
 const failedImages = ref<Set<string>>(new Set())
+/** Full exercise rows keyed by id (list API is paginated — treadmill may not be on page 1). */
+const exerciseCache = ref<Record<string, Exercise>>({})
+const draftReady = ref(false)
+
+function exerciseFor(id: string): Exercise | undefined {
+  return exerciseCache.value[id] ?? exercises.items.find((e) => e.id === id)
+}
+
+function displayName(item: RoutineExercise): string {
+  return item.exercise_name || exerciseFor(item.exercise_id)?.name || item.exercise_id
+}
+
+function isCardio(id: string): boolean {
+  const ex = exerciseFor(id)
+  if (!ex) return false
+  return ex.is_time_based || ex.is_distance_based
+}
+
+async function ensureExercise(id: string): Promise<Exercise | undefined> {
+  const cached = exerciseFor(id)
+  if (cached) return cached
+  try {
+    const ex = await exercises.getOne(id)
+    exerciseCache.value = { ...exerciseCache.value, [id]: ex }
+    return ex
+  } catch {
+    return undefined
+  }
+}
+
+function newLine(exerciseId: string, orderIndex: number, ex?: Exercise): RoutineExercise {
+  const resolved = ex ?? exerciseFor(exerciseId)
+  const cardio = resolved && (resolved.is_time_based || resolved.is_distance_based)
+  return {
+    exercise_id: exerciseId,
+    order_index: orderIndex,
+    target_sets: cardio ? 1 : 3,
+    target_reps_range: cardio ? null : '8-12',
+    target_duration_seconds: resolved?.is_time_based ? 1200 : null,
+    target_distance_km: resolved?.is_distance_based ? 3 : null,
+    rest_seconds: cardio ? 60 : 90,
+    notes: null,
+    exercise_name: resolved?.name,
+  }
+}
+
+function fixStrengthDefaultsOnCardio(item: RoutineExercise, ex: Exercise) {
+  if (!ex.is_time_based && !ex.is_distance_based) return
+  if (item.target_reps_range !== '8-12' && item.target_reps_range != null) return
+  item.target_sets = 1
+  item.target_reps_range = null
+  if (ex.is_time_based && !item.target_duration_seconds) item.target_duration_seconds = 1200
+  if (ex.is_distance_based && item.target_distance_km == null) item.target_distance_km = 3
+}
+
+async function hydrateDraftExercises() {
+  if (!store.draft) return
+  for (const item of store.draft.exercises) {
+    const ex = await ensureExercise(item.exercise_id)
+    if (!ex) continue
+    if (!item.exercise_name) item.exercise_name = ex.name
+    fixStrengthDefaultsOnCardio(item, ex)
+  }
+}
 
 onMounted(async () => {
   await exercises.load()
+  for (const ex of exercises.items) {
+    exerciseCache.value[ex.id] = ex
+  }
   if (route.query.id) {
     const r = await store.getOne(String(route.query.id))
     store.startDraft(r)
@@ -15,17 +84,11 @@ onMounted(async () => {
     store.startDraft()
   }
   if (addId.value && store.draft) {
-    const ex = exercises.items.find((e) => e.id === addId.value)
-    store.draft.exercises.push({
-      exercise_id: addId.value,
-      order_index: store.draft.exercises.length,
-      target_sets: 3,
-      target_reps_range: '8-12',
-      rest_seconds: 90,
-      notes: null,
-      exercise_name: ex?.name,
-    })
+    const ex = await ensureExercise(addId.value)
+    store.draft.exercises.push(newLine(addId.value, store.draft.exercises.length, ex))
   }
+  await hydrateDraftExercises()
+  draftReady.value = true
 })
 
 function move(i: number, dir: number) {
@@ -41,34 +104,38 @@ function move(i: number, dir: number) {
   store.draft.exercises = copy
 }
 
-function handleSelect(payload: { id: string; name: string }) {
+async function handleSelect(payload: { id: string; name: string }) {
   if (!store.draft) return
-  store.draft.exercises.push({
-    exercise_id: payload.id,
-    order_index: store.draft.exercises.length,
-    target_sets: 3,
-    target_reps_range: '8-12',
-    rest_seconds: 90,
-    notes: null,
-    exercise_name: payload.name,
-  })
+  const ex = await ensureExercise(payload.id)
+  store.draft.exercises.push(newLine(payload.id, store.draft.exercises.length, ex))
 }
 
 function thumbFor(id: string): string | null {
-  const ex = exercises.items.find((e) => e.id === id)
+  const ex = exerciseFor(id)
   if (!ex?.gif_url) return null
   if (failedImages.value.has(id)) return null
   return ex.gif_url
 }
 
 function muscleFor(id: string): string | null {
-  const ex = exercises.items.find((e) => e.id === id)
+  const ex = exerciseFor(id)
   return ex?.target || ex?.body_part || null
 }
 
 function equipmentFor(id: string): string | null {
-  const ex = exercises.items.find((e) => e.id === id)
+  const ex = exerciseFor(id)
   return ex?.equipment || null
+}
+
+function trackingLabel(id: string): string {
+  const ex = exerciseFor(id)
+  if (!ex) return ''
+  const parts: string[] = []
+  if (ex.is_time_based) parts.push('time')
+  if (ex.is_distance_based) parts.push('distance')
+  if (ex.is_load_based) parts.push('load')
+  if (ex.is_reps_based && !ex.is_time_based) parts.push('reps')
+  return parts.join(' · ')
 }
 
 function imageFailed(id: string) {
@@ -83,8 +150,7 @@ async function save() {
 </script>
 
 <template>
-  <div v-if="store.draft" class="mx-auto grid max-w-2xl gap-4 pb-24">
-    <!-- Page header -->
+  <div v-if="store.draft && draftReady" class="mx-auto grid max-w-2xl gap-4 pb-24">
     <div class="flex items-center justify-between">
       <button class="btn-ghost -ml-2" @click="navigateTo('/routines')">← Cancel</button>
       <h1 class="text-lg font-semibold">
@@ -93,21 +159,18 @@ async function save() {
       <button class="btn-primary" @click="save">Save</button>
     </div>
 
-    <!-- Routine title -->
     <input
       v-model="store.draft.name"
       class="input text-xl font-semibold"
       placeholder="Routine title"
     />
 
-    <!-- Exercise cards -->
     <div class="grid gap-4">
       <article
         v-for="(item, i) in store.draft.exercises"
         :key="item.exercise_id + i"
         class="card p-4"
       >
-        <!-- Card header: thumb + name + menu -->
         <div class="flex items-start gap-3">
           <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--surface)]">
             <img
@@ -123,16 +186,18 @@ async function save() {
 
           <div class="min-w-0 flex-1">
             <p class="truncate text-base font-semibold text-[var(--accent)]">
-              {{ item.exercise_name || item.exercise_id }}
+              {{ displayName(item) }}
             </p>
             <p class="truncate text-xs text-[var(--muted)]">
               <span v-if="muscleFor(item.exercise_id)">{{ muscleFor(item.exercise_id) }}</span>
               <span v-if="muscleFor(item.exercise_id) && equipmentFor(item.exercise_id)"> · </span>
               <span v-if="equipmentFor(item.exercise_id)">{{ equipmentFor(item.exercise_id) }}</span>
             </p>
+            <p v-if="trackingLabel(item.exercise_id)" class="mt-0.5 text-xs text-[var(--muted)]">
+              Track: {{ trackingLabel(item.exercise_id) }}
+            </p>
           </div>
 
-          <!-- Reorder / remove menu -->
           <div class="flex shrink-0 items-center gap-1">
             <button
               class="grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--surface)] disabled:opacity-30"
@@ -151,73 +216,93 @@ async function save() {
           </div>
         </div>
 
-        <!-- Notes -->
         <input
           v-model="item.notes"
           class="input mt-3 w-full"
           placeholder="Add routine notes here"
         />
 
-        <!-- Rest timer pill -->
-        <div class="mt-3 flex items-center gap-2 text-sm text-[var(--accent)]">
-          <span>⏱</span>
-          <span>Rest Timer:</span>
-          <input
-            v-model.number="item.rest_seconds"
-            type="number"
-            min="0"
-            class="w-16 bg-transparent text-sm font-semibold outline-none"
-          />
-          <span>s</span>
-        </div>
-
-        <!-- Column headers -->
-        <div class="mt-4 grid grid-cols-[56px_1fr_1fr] gap-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-          <span>Sets</span>
-          <span>Reps</span>
-          <span>Rest (s)</span>
-        </div>
-
-        <!-- Row -->
-        <div class="mt-2 grid grid-cols-[56px_1fr_1fr] gap-2">
-          <div class="grid h-11 place-items-center rounded-lg bg-[var(--surface)] font-semibold">
-            {{ item.target_sets || 1 }}
+        <!-- Cardio targets -->
+        <template v-if="isCardio(item.exercise_id)">
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            <label v-if="exerciseFor(item.exercise_id)?.is_time_based" class="text-xs">
+              Target time (mm:ss)
+              <DurationInput v-model="item.target_duration_seconds" placeholder="20:00" />
+            </label>
+            <label v-if="exerciseFor(item.exercise_id)?.is_distance_based" class="text-xs">
+              Target distance (km)
+              <input
+                v-model.number="item.target_distance_km"
+                class="input mt-1"
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="3"
+              />
+            </label>
           </div>
-          <input
-            v-model="item.target_reps_range"
-            class="input h-11 text-center"
-            placeholder="8-12"
-          />
-          <input
-            v-model.number="item.rest_seconds"
-            type="number"
-            min="0"
-            class="input h-11 text-center"
-            placeholder="90"
-          />
-        </div>
+          <p class="mt-2 text-xs text-[var(--muted)]">
+            Live workouts will show time and distance fields instead of reps and weight.
+          </p>
+        </template>
 
-        <!-- Sets stepper -->
-        <div class="mt-3 flex items-center gap-2">
-          <button
-            class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--surface)] text-lg"
-            @click="item.target_sets = Math.max(1, (item.target_sets || 1) - 1)"
-          >−</button>
-          <span class="text-sm text-[var(--muted)]">{{ item.target_sets }} sets</span>
-          <button
-            class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--surface)] text-lg"
-            @click="item.target_sets = (item.target_sets || 0) + 1"
-          >+</button>
-        </div>
+        <!-- Strength targets -->
+        <template v-else>
+          <div class="mt-3 flex items-center gap-2 text-sm text-[var(--accent)]">
+            <span>⏱</span>
+            <span>Rest between sets:</span>
+            <input
+              v-model.number="item.rest_seconds"
+              type="number"
+              min="0"
+              class="w-16 bg-transparent text-sm font-semibold outline-none"
+            />
+            <span>s</span>
+          </div>
+
+          <div class="mt-4 grid grid-cols-[56px_1fr_1fr] gap-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+            <span>Sets</span>
+            <span>Reps</span>
+            <span>Rest (s)</span>
+          </div>
+
+          <div class="mt-2 grid grid-cols-[56px_1fr_1fr] gap-2">
+            <div class="grid h-11 place-items-center rounded-lg bg-[var(--surface)] font-semibold">
+              {{ item.target_sets || 1 }}
+            </div>
+            <input
+              v-model="item.target_reps_range"
+              class="input h-11 text-center"
+              placeholder="8-12"
+            />
+            <input
+              v-model.number="item.rest_seconds"
+              type="number"
+              min="0"
+              class="input h-11 text-center"
+              placeholder="90"
+            />
+          </div>
+
+          <div class="mt-3 flex items-center gap-2">
+            <button
+              class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--surface)] text-lg"
+              @click="item.target_sets = Math.max(1, (item.target_sets || 1) - 1)"
+            >−</button>
+            <span class="text-sm text-[var(--muted)]">{{ item.target_sets }} sets</span>
+            <button
+              class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--surface)] text-lg"
+              @click="item.target_sets = (item.target_sets || 0) + 1"
+            >+</button>
+          </div>
+        </template>
       </article>
     </div>
 
-    <!-- Empty state -->
     <div v-if="!store.draft.exercises.length" class="card py-10 text-center text-[var(--muted)]">
       No exercises yet. Tap "Add exercise" below.
     </div>
 
-    <!-- Bottom actions -->
     <div class="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--bg)]/95 p-4 backdrop-blur md:static md:rounded-xl md:border md:bg-[var(--surface)]">
       <div class="mx-auto grid max-w-2xl gap-2">
         <button class="btn-primary w-full" @click="showPicker = true">
@@ -235,4 +320,5 @@ async function save() {
       @select="handleSelect"
     />
   </div>
+  <p v-else-if="store.draft" class="py-12 text-center text-[var(--muted)]">Loading exercises…</p>
 </template>

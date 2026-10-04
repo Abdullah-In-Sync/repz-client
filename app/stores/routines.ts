@@ -43,6 +43,8 @@ export const useRoutineStore = defineStore('routines', {
           order_index: i,
           target_sets: e.target_sets,
           target_reps_range: e.target_reps_range,
+          target_duration_seconds: e.target_duration_seconds,
+          target_distance_km: e.target_distance_km,
           rest_seconds: e.rest_seconds,
           notes: e.notes,
         })),

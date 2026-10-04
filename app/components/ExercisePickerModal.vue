@@ -185,8 +185,16 @@ function imageFailed(id: string) {
         <!-- Search -->
         <div class="px-4 pt-3">
           <div class="relative">
-            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]">🔍</span>
-            <input v-model="search" class="input w-full pl-9" placeholder="Search exercise" />
+            <span
+              class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-sm text-[var(--muted)]"
+              aria-hidden="true"
+            >🔍</span>
+            <input
+              v-model="search"
+              class="input w-full !pl-10"
+              type="search"
+              placeholder="Search exercise"
+            />
           </div>
         </div>
 

@@ -15,7 +15,13 @@ async function startRoutine(id: string) {
       /* skip */
     }
   }
-  await workout.start({ name: routine.name, routineId: routine.id, lastLogged: last, exercises })
+  await workout.start({
+    name: routine.name,
+    routineId: routine.id,
+    lastLogged: last,
+    exercises,
+    routineExercises: routine.exercises,
+  })
   if (workout.session) await navigateTo(`/workout/${workout.session.id}`)
 }
 </script>
