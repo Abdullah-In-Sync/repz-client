@@ -38,17 +38,21 @@ export const useRoutineStore = defineStore('routines', {
         name: this.draft.name,
         description: this.draft.description || null,
         folder: this.draft.folder || null,
-        exercises: this.draft.exercises.map((e, i) => ({
-          exercise_id: e.exercise_id,
-          order_index: i,
-          target_sets: e.target_sets,
-          target_reps_range: e.target_reps_range,
-          target_duration_seconds: e.target_duration_seconds,
-          target_distance_km: e.target_distance_km,
-          target_weight_kg: e.target_weight_kg,
-          rest_seconds: e.rest_seconds,
-          notes: e.notes,
-        })),
+        exercises: this.draft.exercises.map((e, i) => {
+          const firstSet = e.set_targets?.[0]
+          return {
+            exercise_id: e.exercise_id,
+            order_index: i,
+            target_sets: e.set_targets?.length || e.target_sets,
+            target_reps_range: firstSet?.reps_range ?? e.target_reps_range,
+            target_duration_seconds: e.target_duration_seconds,
+            target_distance_km: e.target_distance_km,
+            target_weight_kg: firstSet?.weight_kg ?? e.target_weight_kg,
+            rest_seconds: firstSet?.rest_seconds ?? e.rest_seconds,
+            notes: e.notes,
+            set_targets: e.set_targets,
+          }
+        }),
       }
       if (this.draft.id) {
         await api.patch(`/routines/${this.draft.id}`, body)

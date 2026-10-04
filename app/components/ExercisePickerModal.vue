@@ -20,14 +20,17 @@ const emit = defineEmits<{
 }>()
 
 const api = useApi()
+const exercises = useExerciseStore()
 
 const search = ref('')
+const customName = ref('')
 const equipmentFilter = ref<string | null>(null)
 const muscleFilter = ref<string | null>(null)
 const items = ref<Exercise[]>([])
 const total = ref(0)
 const offset = ref(0)
 const loading = ref(false)
+const creating = ref(false)
 const showEquipmentPicker = ref(false)
 const showMusclePicker = ref(false)
 const failedImages = ref<Set<string>>(new Set())
@@ -96,6 +99,13 @@ const activeMuscleLabel = computed(() => {
   return 'All Muscles'
 })
 
+const customFilterSummary = computed(() => {
+  const parts: string[] = []
+  if (muscleFilter.value) parts.push(activeMuscleLabel.value)
+  if (equipmentFilter.value) parts.push(activeEquipmentLabel.value)
+  return parts.join(' · ')
+})
+
 async function load(reset = false) {
   if (loading.value) return
   loading.value = true
@@ -124,7 +134,8 @@ async function load(reset = false) {
 }
 
 let searchDebounce: ReturnType<typeof setTimeout> | null = null
-watch(search, () => {
+watch(search, (value) => {
+  customName.value = value
   if (searchDebounce) clearTimeout(searchDebounce)
   searchDebounce = setTimeout(() => load(true), 300)
 })
@@ -136,8 +147,10 @@ watch(
   (v) => {
     if (v) {
       search.value = ''
+      customName.value = ''
       equipmentFilter.value = null
       muscleFilter.value = null
+      creating.value = false
       failedImages.value = new Set()
       load(true)
     }
@@ -163,6 +176,24 @@ function clearFilters() {
 function pick(exercise: Exercise) {
   emit('select', { id: exercise.id, name: exercise.name, gif_url: exercise.gif_url })
   emit('close')
+}
+
+async function addCustom() {
+  const name = customName.value.trim()
+  if (!name || creating.value) return
+  creating.value = true
+  try {
+    const created = await exercises.createCustom({
+      name,
+      ...(equipmentFilter.value ? { equipment: equipmentFilter.value } : {}),
+      ...(muscleFilter.value ? { target: muscleFilter.value } : {}),
+    })
+    pick(created)
+  } catch {
+    /* toast handled by useApi */
+  } finally {
+    creating.value = false
+  }
 }
 
 function imageFailed(id: string) {
@@ -224,8 +255,36 @@ function imageFailed(id: string) {
 
         <!-- Exercise list -->
         <div class="flex-1 overflow-y-auto px-4 py-3">
-          <div v-if="!items.length && !loading" class="py-10 text-center text-[var(--muted)]">
-            No exercises match your filters.
+          <div v-if="!items.length && !loading" class="py-8 text-center">
+            <p class="text-[var(--muted)]">No exercises match your filters.</p>
+            <form
+              class="mx-auto mt-5 max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left"
+              @submit.prevent="addCustom"
+            >
+              <p class="text-sm font-medium">Add it as a custom exercise</p>
+              <p class="mt-1 text-xs text-[var(--muted)]">
+                Saved to your account and added to this routine.
+              </p>
+              <label class="mt-3 block text-xs text-[var(--muted)]">
+                Name
+                <input
+                  v-model="customName"
+                  class="input mt-1"
+                  placeholder="Exercise name"
+                  :disabled="creating"
+                />
+              </label>
+              <p v-if="customFilterSummary" class="mt-2 text-xs text-[var(--muted)]">
+                {{ customFilterSummary }}
+              </p>
+              <button
+                type="submit"
+                class="btn-primary mt-3 w-full"
+                :disabled="creating || !customName.trim()"
+              >
+                {{ creating ? 'Adding…' : 'Add custom exercise' }}
+              </button>
+            </form>
           </div>
 
           <ul class="grid gap-1">

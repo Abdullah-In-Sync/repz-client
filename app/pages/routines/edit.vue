@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Exercise, RoutineExercise } from '~/types/api'
+import type { Exercise, RoutineExercise, RoutineSetTarget } from '~/types/api'
 
 const route = useRoute()
 const routineReturnTo = computed(() => encodeURIComponent(route.fullPath))
@@ -45,15 +45,57 @@ function newLine(exerciseId: string, orderIndex: number, ex?: Exercise): Routine
   return {
     exercise_id: exerciseId,
     order_index: orderIndex,
-    target_sets: cardio ? 1 : 3,
+    target_sets: 1,
     target_reps_range: cardio ? null : '8-12',
     target_duration_seconds: resolved?.is_time_based ? 1200 : null,
     target_distance_km: resolved?.is_distance_based ? 3 : null,
     target_weight_kg: null,
     rest_seconds: cardio ? 60 : 90,
     notes: null,
+    set_targets: cardio
+      ? null
+      : [{ reps_range: '8-12', weight_kg: null, rest_seconds: 90 }],
     exercise_name: resolved?.name,
   }
+}
+
+function ensureSetTargets(item: RoutineExercise) {
+  if (isCardio(item.exercise_id)) return
+  if (!item.set_targets?.length) {
+    const count = Math.max(1, item.target_sets || 1)
+    item.set_targets = Array.from({ length: count }, () => ({
+      reps_range: item.target_reps_range,
+      weight_kg: item.target_weight_kg,
+      rest_seconds: item.rest_seconds,
+    }))
+  }
+  item.target_sets = item.set_targets.length
+}
+
+function addSet(item: RoutineExercise) {
+  ensureSetTargets(item)
+  const previous = item.set_targets?.at(-1)
+  item.set_targets?.push({
+    reps_range: previous?.reps_range ?? '8-12',
+    weight_kg: previous?.weight_kg ?? null,
+    rest_seconds: previous?.rest_seconds ?? 90,
+  })
+  item.target_sets = item.set_targets?.length || 1
+}
+
+function removeSet(item: RoutineExercise, index: number) {
+  if (!item.set_targets || item.set_targets.length <= 1) return
+  item.set_targets.splice(index, 1)
+  item.target_sets = item.set_targets.length
+}
+
+function setDisplayWeight(set: RoutineSetTarget): string | number {
+  return units.toDisplay(set.weight_kg) ?? ''
+}
+
+function updateSetWeight(set: RoutineSetTarget, event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  set.weight_kg = value === '' ? null : units.toKg(Number(value))
 }
 
 function fixStrengthDefaultsOnCardio(item: RoutineExercise, ex: Exercise) {
@@ -72,6 +114,7 @@ async function hydrateDraftExercises() {
     if (!ex) continue
     if (!item.exercise_name) item.exercise_name = ex.name
     fixStrengthDefaultsOnCardio(item, ex)
+    ensureSetTargets(item)
   }
 }
 
@@ -274,18 +317,6 @@ async function save() {
 
         <!-- Strength targets -->
         <template v-else>
-          <div class="mt-3 flex items-center gap-2 text-sm text-[var(--accent)]">
-            <span>⏱</span>
-            <span>Rest between sets:</span>
-            <input
-              v-model.number="item.rest_seconds"
-              type="number"
-              min="0"
-              class="w-16 bg-transparent text-sm font-semibold outline-none"
-            />
-            <span>s</span>
-          </div>
-
           <div
             class="mt-4 grid gap-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]"
             :class="
@@ -296,13 +327,15 @@ async function save() {
                   : 'grid-cols-[48px_1fr_1fr]'
             "
           >
-            <span>Sets</span>
+            <span>Set</span>
             <span v-if="showReps(item.exercise_id)">Reps</span>
             <span v-if="showLoad(item.exercise_id)">Load ({{ units.label }})</span>
             <span>Rest (s)</span>
           </div>
 
           <div
+            v-for="(set, setIndex) in item.set_targets"
+            :key="setIndex"
             class="mt-2 grid gap-2"
             :class="
               showLoad(item.exercise_id) && showReps(item.exercise_id)
@@ -313,11 +346,11 @@ async function save() {
             "
           >
             <div class="grid h-11 place-items-center rounded-lg bg-[var(--surface)] font-semibold">
-              {{ item.target_sets || 1 }}
+              {{ setIndex + 1 }}
             </div>
             <input
               v-if="showReps(item.exercise_id)"
-              v-model="item.target_reps_range"
+              v-model="set.reps_range"
               class="input h-11 text-center"
               placeholder="8-12"
             />
@@ -328,33 +361,30 @@ async function save() {
               min="0"
               step="0.5"
               placeholder="0"
-              :value="units.toDisplay(item.target_weight_kg) ?? ''"
-              @input="
-                item.target_weight_kg = units.toKg(
-                  Number(($event.target as HTMLInputElement).value) || null,
-                )
-              "
+              :value="setDisplayWeight(set)"
+              @input="updateSetWeight(set, $event)"
             />
-            <input
-              v-model.number="item.rest_seconds"
-              type="number"
-              min="0"
-              class="input h-11 text-center"
-              placeholder="90"
-            />
+            <div class="relative">
+              <input
+                v-model.number="set.rest_seconds"
+                type="number"
+                min="0"
+                class="input h-11 text-center"
+                placeholder="90"
+              />
+              <button
+                v-if="(item.set_targets?.length || 0) > 1"
+                type="button"
+                class="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full bg-[var(--warn)] text-xs text-black"
+                aria-label="Remove set"
+                @click="removeSet(item, setIndex)"
+              >×</button>
+            </div>
           </div>
 
-          <div class="mt-3 flex items-center gap-2">
-            <button
-              class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--surface)] text-lg"
-              @click="item.target_sets = Math.max(1, (item.target_sets || 1) - 1)"
-            >−</button>
-            <span class="text-sm text-[var(--muted)]">{{ item.target_sets }} sets</span>
-            <button
-              class="grid h-9 w-9 place-items-center rounded-lg bg-[var(--surface)] text-lg"
-              @click="item.target_sets = (item.target_sets || 0) + 1"
-            >+</button>
-          </div>
+          <button type="button" class="btn-ghost mt-3 w-full" @click="addSet(item)">
+            + Add set
+          </button>
         </template>
       </article>
     </div>

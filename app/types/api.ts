@@ -60,6 +60,12 @@ export interface ExerciseFilters {
   equipment: string[]
 }
 
+export interface RoutineSetTarget {
+  reps_range: string | null
+  weight_kg: number | null
+  rest_seconds: number | null
+}
+
 export interface RoutineExercise {
   id?: string
   exercise_id: string
@@ -71,6 +77,7 @@ export interface RoutineExercise {
   target_weight_kg: number | null
   rest_seconds: number | null
   notes: string | null
+  set_targets?: RoutineSetTarget[] | null
   exercise_name?: string | null
 }
 
@@ -210,6 +217,7 @@ export interface DraftSet {
   rpe: number | null
   duration_seconds: number | null
   distance_km: number | null
+  rest_seconds?: number | null
   is_warmup: boolean
   is_completed: boolean
 }

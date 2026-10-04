@@ -42,27 +42,30 @@ export const useWorkoutStore = defineStore('workout', {
       this.blocks = (opts.exercises || []).map((ex) => {
         const last = opts.lastLogged?.find((l) => l.exercise_id === ex.id)
         const plan = opts.routineExercises?.find((r) => r.exercise_id === ex.id)
-        const cardio = ex.is_time_based || ex.is_distance_based
-        const setCount = Math.max(1, plan?.target_sets ?? (cardio ? 1 : 3))
+        const setCount = Math.max(1, plan?.set_targets?.length || plan?.target_sets || 1)
         const restSeconds = plan?.rest_seconds ?? 90
-        const makeSet = (setNumber: number): DraftSet => ({
-          localId: crypto.randomUUID(),
-          exercise_id: ex.id,
-          exercise_name: ex.name,
-          is_time_based: ex.is_time_based,
-          is_distance_based: ex.is_distance_based,
-          is_load_based: ex.is_load_based,
-          is_reps_based: ex.is_reps_based,
-          set_number: setNumber,
-          weight_kg: last?.weight_kg ?? plan?.target_weight_kg ?? null,
-          reps: last?.reps ?? null,
-          rpe: last?.rpe ?? null,
-          duration_seconds:
-            last?.duration_seconds ?? plan?.target_duration_seconds ?? (ex.is_time_based ? 1200 : null),
-          distance_km: last?.distance_km ?? plan?.target_distance_km ?? null,
-          is_warmup: false,
-          is_completed: false,
-        })
+        const makeSet = (setNumber: number): DraftSet => {
+          const setTarget = plan?.set_targets?.[setNumber - 1]
+          return {
+            localId: crypto.randomUUID(),
+            exercise_id: ex.id,
+            exercise_name: ex.name,
+            is_time_based: ex.is_time_based,
+            is_distance_based: ex.is_distance_based,
+            is_load_based: ex.is_load_based,
+            is_reps_based: ex.is_reps_based,
+            set_number: setNumber,
+            weight_kg: setTarget?.weight_kg ?? last?.weight_kg ?? plan?.target_weight_kg ?? null,
+            reps: last?.reps ?? null,
+            rpe: last?.rpe ?? null,
+            duration_seconds:
+              last?.duration_seconds ?? plan?.target_duration_seconds ?? (ex.is_time_based ? 1200 : null),
+            distance_km: last?.distance_km ?? plan?.target_distance_km ?? null,
+            rest_seconds: setTarget?.rest_seconds ?? restSeconds,
+            is_warmup: false,
+            is_completed: false,
+          }
+        }
         return {
           exercise_id: ex.id,
           exercise_name: ex.name,
@@ -93,6 +96,7 @@ export const useWorkoutStore = defineStore('workout', {
         rpe: prev?.rpe ?? null,
         duration_seconds: prev?.duration_seconds ?? null,
         distance_km: prev?.distance_km ?? null,
+        rest_seconds: prev?.rest_seconds ?? block.rest_seconds,
         is_warmup: false,
         is_completed: false,
       })
@@ -127,7 +131,7 @@ export const useWorkoutStore = defineStore('workout', {
             queue.enqueue({ workoutId: this.session.id, payload })
           }
         }
-        rest.start(block.rest_seconds || 90)
+        rest.start(set.rest_seconds ?? block.rest_seconds ?? 90)
       }
     },
     async deleteSet(localId: string) {
