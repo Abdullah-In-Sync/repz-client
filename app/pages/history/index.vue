@@ -21,7 +21,7 @@ const detail = computed(() => reports.workouts.find((w) => w.id === selected.val
     <div v-if="tab === 'workouts'" class="grid gap-2">
       <button v-for="w in reports.workouts" :key="w.id" class="card p-4 text-left" @click="selected = w.id">
         <p class="font-semibold">{{ w.name || 'Workout' }}</p>
-        <p class="text-sm text-[var(--muted)]">{{ w.started_at?.slice(0, 16) }} · {{ Math.round(w.total_volume_kg) }} kg</p>
+        <WorkoutSessionMeta :workout="w" />
       </button>
     </div>
     <div v-else class="card p-4">
@@ -31,7 +31,7 @@ const detail = computed(() => reports.workouts.find((w) => w.id === selected.val
     <div v-if="detail" class="fixed inset-0 z-30 bg-black/70 p-4" @click.self="selected = null">
       <div class="card mx-auto max-w-lg p-5">
         <h2 class="display text-3xl">{{ detail.name }}</h2>
-        <p class="text-sm text-[var(--muted)]">{{ detail.sets.length }} sets · {{ Math.round(detail.total_volume_kg) }} kg</p>
+        <WorkoutSessionMeta :workout="detail" />
         <ul class="mt-4 space-y-2 text-sm">
           <li v-for="s in detail.sets" :key="s.id">
             Set {{ s.set_number }} · {{ s.weight_kg }}kg x {{ s.reps }} @ {{ s.rpe }}
