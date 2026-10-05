@@ -75,7 +75,7 @@ function thumbFor(id: string): string | null {
 function formatWeightLabel(kg: number | null | undefined): string {
   if (kg == null) return ''
   const n = units.toDisplay(kg)
-  return n == null ? '' : `${n}${units.label.toLowerCase()}`
+  return n == null ? '' : `${n}${units.label.value.toLowerCase()}`
 }
 
 function previousLabel(set: DraftSet, block: WorkoutBlock): string {
