@@ -25,7 +25,7 @@ export interface Paginated<T> {
 
 export interface Exercise {
   id: string
-  source: 'workoutx' | 'custom'
+  source: 'catalog' | 'custom'
   external_id: string | null
   name: string
   body_part: string | null
@@ -47,6 +47,8 @@ export interface Exercise {
   created_by_user_id: string | null
   is_time_based: boolean
   is_distance_based: boolean
+  is_load_based: boolean
+  is_reps_based: boolean
   description: string | null
   created_at: string
   updated_at: string
@@ -58,14 +60,24 @@ export interface ExerciseFilters {
   equipment: string[]
 }
 
+export interface RoutineSetTarget {
+  reps_range: string | null
+  weight_kg: number | null
+  rest_seconds: number | null
+}
+
 export interface RoutineExercise {
   id?: string
   exercise_id: string
   order_index: number
   target_sets: number | null
   target_reps_range: string | null
+  target_duration_seconds: number | null
+  target_distance_km: number | null
+  target_weight_kg: number | null
   rest_seconds: number | null
   notes: string | null
+  set_targets?: RoutineSetTarget[] | null
   exercise_name?: string | null
 }
 
@@ -84,6 +96,7 @@ export interface Routine {
 export interface LastLoggedSet {
   exercise_id: string
   exercise_name: string
+  set_number?: number | null
   weight_kg: number | null
   reps: number | null
   rpe: number | null
@@ -197,12 +210,20 @@ export interface DraftSet {
   exercise_name: string
   is_time_based: boolean
   is_distance_based: boolean
+  is_load_based: boolean
+  is_reps_based: boolean
   set_number: number
   weight_kg: number | null
   reps: number | null
   rpe: number | null
   duration_seconds: number | null
   distance_km: number | null
+  rest_seconds?: number | null
+  previous_weight_kg?: number | null
+  previous_reps?: number | null
+  previous_rpe?: number | null
+  previous_duration_seconds?: number | null
+  previous_distance_km?: number | null
   is_warmup: boolean
   is_completed: boolean
 }

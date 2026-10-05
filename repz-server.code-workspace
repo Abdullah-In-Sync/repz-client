@@ -1,11 +1,14 @@
 {
-	"folders": [
-		{
-			"path": "../repz-server"
-		},
-		{
-			"path": "."
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "path": "../repz-server",
+    },
+    {
+      "path": ".",
+    },
+    {
+      "path": "../exercises-dataset",
+    },
+  ],
+  "settings": {},
 }

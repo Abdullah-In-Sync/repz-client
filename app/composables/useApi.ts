@@ -37,7 +37,12 @@ export const useApi = () => {
         headers,
       })
     } catch (error: unknown) {
-      const err = error as { status?: number; data?: { detail?: string } }
+      const err = error as {
+        status?: number
+        data?: { detail?: string }
+        message?: string
+        cause?: { message?: string }
+      }
       const user = await currentUser()
       if (err.status === 401 && user) {
         const fresh = await user.getIdToken(true)
@@ -56,7 +61,18 @@ export const useApi = () => {
       }
       const missingAuth = err.status === 401 && !auth.firebaseUser
       if (!import.meta.server && !missingAuth) {
-        toast.pushToast(err.data?.detail || 'Request failed')
+        const detail = err.data?.detail
+        const networkFailed =
+          err.message?.includes('Failed to fetch') || err.cause?.message?.includes('Failed to fetch')
+        const message =
+          typeof detail === 'string'
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map((item) => item.msg || String(item)).join(', ')
+              : networkFailed
+                ? 'Could not reach the API. Is the backend running on port 8000?'
+                : 'Request failed'
+        toast.pushToast(message)
       }
       throw error
     }
