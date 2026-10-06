@@ -68,7 +68,7 @@ const muscleMax = computed(() => Math.max(...reports.muscle.map((m) => m.volume 
       <div class="-mx-4 min-w-0 sm:mx-0">
         <div class="flex w-full min-w-0 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 sm:px-0">
           <article v-for="pr in reports.prs.slice(0, 8)" :key="pr.id" class="card w-[168px] shrink-0 p-4 sm:w-[180px]">
-            <p class="truncate text-xs text-[var(--accent)]">{{ pr.record_type }}</p>
+            <p class="truncate text-xs text-[var(--accent)]">{{ formatRecordType(pr.record_type) }}</p>
             <p class="truncate font-semibold">{{ pr.exercise_name }}</p>
             <p class="display truncate text-2xl tabular">{{ pr.value }}</p>
           </article>
