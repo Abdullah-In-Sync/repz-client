@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Exercise } from '~/types/api'
+import { exerciseGifSrc, hasExerciseGif } from '~/utils/exerciseMedia'
 
 const route = useRoute()
 const store = useExerciseStore()
@@ -222,8 +223,8 @@ async function createCustom() {
       >
         <div class="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-[var(--surface-2)] text-xs text-[var(--muted)]">
           <img
-            v-if="item.gif_url"
-            :src="exerciseGifSrc(item.gif_url, item.updated_at)!"
+            v-if="hasExerciseGif(item.gif_url, item.external_id)"
+            :src="exerciseGifSrc(item.gif_url, item.updated_at, item.external_id)!"
             alt=""
             class="h-full w-full object-cover"
           />
@@ -259,8 +260,8 @@ async function createCustom() {
     <div v-if="selected" class="fixed inset-0 z-30 bg-black/70 p-4" @click.self="closeDetail">
       <div class="card mx-auto max-h-[90dvh] max-w-lg overflow-y-auto p-5">
         <img
-          v-if="selected.gif_url && !gifFailed && !editing"
-          :src="exerciseGifSrc(selected.gif_url, selected.updated_at)!"
+          v-if="hasExerciseGif(selected.gif_url, selected.external_id) && !gifFailed && !editing"
+          :src="exerciseGifSrc(selected.gif_url, selected.updated_at, selected.external_id)!"
           class="mb-4 w-full rounded-xl"
           alt=""
           @error="hideBrokenGif"

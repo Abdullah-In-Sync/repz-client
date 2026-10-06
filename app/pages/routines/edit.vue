@@ -166,9 +166,8 @@ async function handleSelect(payload: { id: string; name: string }) {
 
 function thumbFor(id: string): string | null {
   const ex = exerciseFor(id)
-  if (!ex?.gif_url) return null
-  if (failedImages.value.has(id)) return null
-  return exerciseGifSrc(ex.gif_url, ex.updated_at)
+  if (!ex || failedImages.value.has(id)) return null
+  return exerciseGifSrc(ex.gif_url, ex.updated_at, ex.external_id)
 }
 
 function muscleFor(id: string): string | null {

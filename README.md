@@ -19,6 +19,10 @@ npm run dev
 
 Open http://localhost:3000
 
+## Exercise GIFs (Vercel CDN)
+
+For production without Firebase/R2 billing, put GIFs in **`public/exercise-gifs/`** named by catalog id, e.g. `0025.gif` (same as Repz `external_id`). The app loads `/exercise-gifs/{external_id}.gif` when the API has no `gif_url`. Copy files from `exercises-dataset/videos/` (match the id prefix). Commit only the exercises you use, then push to `main` for Vercel to serve them.
+
 ## Auth
 
 Enable Email/Password and Google in the Firebase console. Add `localhost` under Authorized domains. For the deployed site, also add the Vercel hostname.

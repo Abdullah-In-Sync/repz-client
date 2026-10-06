@@ -2,6 +2,7 @@
 interface Exercise {
   id: string
   name: string
+  external_id?: string | null
   gif_url: string | null
   updated_at?: string
   target: string | null
@@ -296,8 +297,8 @@ function imageFailed(id: string) {
             >
               <div class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--surface)]">
                 <img
-                  v-if="item.gif_url && !failedImages.has(item.id)"
-                  :src="exerciseGifSrc(item.gif_url, item.updated_at)!"
+                  v-if="hasExerciseGif(item.gif_url, item.external_id) && !failedImages.has(item.id)"
+                  :src="exerciseGifSrc(item.gif_url, item.updated_at, item.external_id)!"
                   :alt="item.name"
                   class="h-full w-full object-cover"
                   loading="lazy"
