@@ -12,6 +12,8 @@ const units = useUnits()
 const ui = useUiStore()
 const route = useRoute()
 const deleting = ref(false)
+const loadingWorkouts = ref(false)
+const deleteTarget = ref<Workout | null>(null)
 const tab = ref<'workouts' | 'weekly' | 'monthly'>('workouts')
 const selected = ref<string | null>(null)
 const filterDate = computed(() => {
@@ -22,15 +24,20 @@ const exerciseById = ref<Record<string, Exercise>>({})
 const exerciseNames = ref<Record<string, string>>({})
 
 async function loadWorkoutList() {
-  const api = useApi()
-  const params: Record<string, string | number> = { limit: 20, offset: 0 }
-  if (filterDate.value) {
-    params.start = `${filterDate.value}T00:00:00`
-    params.end = `${filterDate.value}T23:59:59`
+  loadingWorkouts.value = true
+  try {
+    const api = useApi()
+    const params: Record<string, string | number> = { limit: 20, offset: 0 }
+    if (filterDate.value) {
+      params.start = `${filterDate.value}T00:00:00`
+      params.end = `${filterDate.value}T23:59:59`
+    }
+    const data = await api.get<Paginated<Workout>>('/workouts', params)
+    reports.workouts = data.items
+    reports.workoutTotal = data.total
+  } finally {
+    loadingWorkouts.value = false
   }
-  const data = await api.get<Paginated<Workout>>('/workouts', params)
-  reports.workouts = data.items
-  reports.workoutTotal = data.total
 }
 
 watch(filterDate, () => loadWorkoutList())
@@ -98,15 +105,23 @@ async function copyReport() {
   }
 }
 
-async function deleteSession(workout: Workout) {
-  const label = workout.name || 'Workout'
-  if (!confirm(`Delete "${label}"? This removes its sets, volume, and calendar entry. This cannot be undone.`)) {
-    return
-  }
+function requestDelete(workout: Workout) {
+  deleteTarget.value = workout
+}
+
+function cancelDelete() {
+  if (deleting.value) return
+  deleteTarget.value = null
+}
+
+async function confirmDelete() {
+  const workout = deleteTarget.value
+  if (!workout || deleting.value) return
   deleting.value = true
   try {
     await reports.deleteWorkout(workout.id)
     if (selected.value === workout.id) selected.value = null
+    deleteTarget.value = null
     ui.pushToast('Session deleted')
   } catch {
     ui.pushToast('Could not delete session')
@@ -114,6 +129,8 @@ async function deleteSession(workout: Workout) {
     deleting.value = false
   }
 }
+
+const deleteTargetLabel = computed(() => deleteTarget.value?.name || 'Workout')
 </script>
 
 <template>
@@ -129,24 +146,27 @@ async function deleteSession(workout: Workout) {
       <NuxtLink to="/history" class="text-[var(--accent)]">Clear</NuxtLink>
     </p>
     <div v-if="tab === 'workouts'" class="grid gap-2">
-      <p v-if="filterDate && !reports.workouts.length" class="text-sm text-[var(--muted)]">
-        No sessions on this day.
-      </p>
-      <div v-for="w in reports.workouts" :key="w.id" class="card flex items-start gap-2 p-4">
-        <button type="button" class="min-w-0 flex-1 text-left" @click="selected = w.id">
-          <p class="font-semibold">{{ w.name || 'Workout' }}</p>
-          <WorkoutSessionMeta :workout="w" />
-        </button>
-        <button
-          type="button"
-          class="btn-ghost shrink-0 text-red-400"
-          :disabled="deleting"
-          aria-label="Delete session"
-          @click="deleteSession(w)"
-        >
-          <Icon name="lucide:trash-2" class="size-4" aria-hidden="true" />
-        </button>
-      </div>
+      <p v-if="loadingWorkouts" class="py-8 text-center text-sm text-[var(--muted)]">Loading…</p>
+      <template v-else>
+        <p v-if="filterDate && !reports.workouts.length" class="text-sm text-[var(--muted)]">
+          No sessions on this day.
+        </p>
+        <div v-for="w in reports.workouts" :key="w.id" class="card flex items-start gap-2 p-4">
+          <button type="button" class="min-w-0 flex-1 text-left" @click="selected = w.id">
+            <p class="font-semibold">{{ w.name || 'Workout' }}</p>
+            <WorkoutSessionMeta :workout="w" />
+          </button>
+          <button
+            type="button"
+            class="btn-ghost shrink-0 text-red-400"
+            :disabled="deleting"
+            aria-label="Delete session"
+            @click="requestDelete(w)"
+          >
+            <Icon name="lucide:trash-2" class="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      </template>
     </div>
     <div v-else class="card p-4">
       <p>Volume: {{ Math.round((tab === 'weekly' ? reports.weekly?.total_volume : reports.monthly?.total_volume) || 0) }} kg</p>
@@ -167,7 +187,7 @@ async function deleteSession(workout: Workout) {
               type="button"
               class="btn-ghost text-sm text-red-400"
               :disabled="deleting"
-              @click="detail && deleteSession(detail)"
+              @click="detail && requestDelete(detail)"
             >
               <span class="inline-flex items-center gap-1.5">
                 <Icon name="lucide:trash-2" class="size-4" aria-hidden="true" />
@@ -189,5 +209,44 @@ async function deleteSession(workout: Workout) {
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="deleteTarget"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-session-title"
+      >
+        <div class="absolute inset-0 bg-black/70" @click="cancelDelete" />
+        <div class="card relative z-10 w-full max-w-md p-5">
+          <h2 id="delete-session-title" class="display text-2xl">Delete session?</h2>
+          <p class="mt-3 text-sm text-[var(--muted)]">
+            Delete “{{ deleteTargetLabel }}”? This removes its sets, volume, and calendar entry. This cannot be undone.
+          </p>
+          <div class="mt-6 flex flex-wrap justify-end gap-2">
+            <button type="button" class="btn-ghost" :disabled="deleting" @click="cancelDelete">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-ghost text-red-400"
+              :disabled="deleting"
+              @click="confirmDelete"
+            >
+              <span class="inline-flex items-center gap-1.5">
+                <Icon
+                  v-if="deleting"
+                  name="lucide:loader-circle"
+                  class="size-4 animate-spin"
+                  aria-hidden="true"
+                />
+                {{ deleting ? 'Deleting…' : 'Delete' }}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
