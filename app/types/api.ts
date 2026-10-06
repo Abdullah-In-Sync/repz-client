@@ -176,6 +176,29 @@ export interface CalendarDay {
   total_volume: number
 }
 
+export interface CalendarDayWorkout {
+  id: string
+  name: string
+  exercises: string[]
+}
+
+export interface CalendarDetailDay {
+  date: string
+  has_workout: boolean
+  workouts: CalendarDayWorkout[]
+}
+
+export interface CalendarDetailMonth {
+  month: string
+  days: CalendarDetailDay[]
+}
+
+export interface CalendarDetail {
+  months: CalendarDetailMonth[]
+  workout_streak_days: number
+  rest_days: number
+}
+
 export interface VolumePoint {
   date: string
   volume: number
@@ -185,6 +208,42 @@ export interface MuscleShare {
   body_part: string
   volume: number
   percent: number
+}
+
+export interface PeriodSummary {
+  start: string
+  end: string
+  total_volume: number
+  total_sets: number
+  duration_seconds: number
+  workout_days: number
+}
+
+export interface MuscleDistributionDetail {
+  range: string
+  current: MuscleShare[]
+  previous: MuscleShare[]
+  current_summary: PeriodSummary
+  previous_summary: PeriodSummary
+}
+
+export type ReportRange = '7d' | '30d' | '90d' | '1y'
+
+export interface PeriodSummary {
+  start: string
+  end: string
+  total_volume: number
+  total_sets: number
+  duration_seconds: number
+  workout_days: number
+}
+
+export interface MuscleDistributionDetail {
+  range: string
+  current: MuscleShare[]
+  previous: MuscleShare[]
+  current_summary: PeriodSummary
+  previous_summary: PeriodSummary
 }
 
 export interface Achievement {

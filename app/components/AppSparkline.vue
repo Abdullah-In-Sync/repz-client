@@ -8,7 +8,7 @@ const max = computed(() => Math.max(...props.values, 1))
 </script>
 
 <template>
-  <div class="flex h-40 items-end gap-px">
+  <div class="flex h-40 w-full min-w-0 items-end gap-px overflow-hidden">
     <div
       v-for="(value, index) in values"
       :key="index"

@@ -35,7 +35,7 @@ const hideNav = computed(
       <span class="text-sm font-semibold">Install Repz on your home screen</span>
       <button class="font-bold" @click="ui.installEvent?.prompt()">Add</button>
     </div>
-    <div class="lg:flex">
+    <div class="min-w-0 lg:flex">
       <aside
         v-if="!hideNav"
         class="hidden min-h-dvh w-60 shrink-0 border-r border-white/5 bg-[var(--surface)] p-4 lg:block"
@@ -59,12 +59,14 @@ const hideNav = computed(
           </NuxtLink>
         </nav>
       </aside>
-      <div class="min-h-dvh flex-1 pb-24 lg:pb-8">
-        <header v-if="!hideNav && !immersiveWorkout" class="flex items-center justify-between px-4 py-4 lg:px-8">
-          <NuxtLink to="/" class="display text-2xl text-[var(--accent)] lg:hidden">REPZ</NuxtLink>
-          <div class="ml-auto text-sm text-[var(--muted)]">{{ auth.profile?.display_name || auth.profile?.email }}</div>
+      <div class="min-h-dvh min-w-0 flex-1 pb-24 lg:pb-8">
+        <header v-if="!hideNav && !immersiveWorkout" class="flex min-w-0 items-center justify-between gap-3 px-4 py-4 lg:px-8">
+          <NuxtLink to="/" class="display shrink-0 text-2xl text-[var(--accent)] lg:hidden">REPZ</NuxtLink>
+          <div class="min-w-0 truncate text-right text-sm text-[var(--muted)]">
+            {{ auth.profile?.display_name || auth.profile?.email }}
+          </div>
         </header>
-        <main :class="immersiveWorkout ? 'px-0 lg:px-0' : 'px-4 lg:px-8'">
+        <main :class="immersiveWorkout ? 'min-w-0 px-0 lg:px-0' : 'min-w-0 px-4 lg:px-8'">
           <slot />
         </main>
       </div>

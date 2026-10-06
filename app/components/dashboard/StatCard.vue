@@ -18,12 +18,12 @@ function reset() {
 <template>
   <article
     ref="root"
-    class="card tilt p-4"
+    class="card tilt min-w-0 p-3 sm:p-4"
     @mousemove="onMove"
     @mouseleave="reset"
   >
-    <p class="text-xs uppercase tracking-widest text-[var(--muted)]">{{ title }}</p>
-    <p class="display mt-1 text-3xl tabular text-[var(--accent)]">{{ value }}</p>
+    <p class="truncate text-xs uppercase tracking-widest text-[var(--muted)]">{{ title }}</p>
+    <p class="display mt-1 truncate text-2xl tabular text-[var(--accent)] sm:text-3xl">{{ value }}</p>
     <p v-if="hint" class="mt-1 text-xs text-[var(--muted)]">{{ hint }}</p>
   </article>
 </template>
