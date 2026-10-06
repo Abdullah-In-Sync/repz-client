@@ -95,7 +95,13 @@ const muscleMax = computed(() =>
         </ul>
       </section>
       <section class="card min-w-0 p-4">
-        <h2 class="mb-3 font-semibold">Calendar</h2>
+        <NuxtLink
+          to="/reports/calendar"
+          class="mb-3 inline-flex items-center gap-1 font-semibold transition-colors hover:text-[var(--accent)]"
+        >
+          Calendar
+          <span aria-hidden="true" class="text-[var(--muted)]">›</span>
+        </NuxtLink>
         <CalendarHeatmap
           :days="reports.calendar"
           @select="navigateTo(`/history?date=${$event}`)"

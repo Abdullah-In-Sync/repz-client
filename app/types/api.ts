@@ -176,6 +176,29 @@ export interface CalendarDay {
   total_volume: number
 }
 
+export interface CalendarDayWorkout {
+  id: string
+  name: string
+  exercises: string[]
+}
+
+export interface CalendarDetailDay {
+  date: string
+  has_workout: boolean
+  workouts: CalendarDayWorkout[]
+}
+
+export interface CalendarDetailMonth {
+  month: string
+  days: CalendarDetailDay[]
+}
+
+export interface CalendarDetail {
+  months: CalendarDetailMonth[]
+  workout_streak_days: number
+  rest_days: number
+}
+
 export interface VolumePoint {
   date: string
   volume: number

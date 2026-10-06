@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Exercise, WorkoutSet } from '~/types/api'
+import type { Exercise, Paginated, Workout, WorkoutSet } from '~/types/api'
 import {
   buildWorkoutReportText,
   formatLoggedSetLine,
@@ -10,13 +10,32 @@ const reports = useReportStore()
 const exercises = useExerciseStore()
 const units = useUnits()
 const ui = useUiStore()
+const route = useRoute()
 const tab = ref<'workouts' | 'weekly' | 'monthly'>('workouts')
 const selected = ref<string | null>(null)
+const filterDate = computed(() => {
+  const raw = route.query.date
+  return typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null
+})
 const exerciseById = ref<Record<string, Exercise>>({})
 const exerciseNames = ref<Record<string, string>>({})
 
+async function loadWorkoutList() {
+  const api = useApi()
+  const params: Record<string, string | number> = { limit: 20, offset: 0 }
+  if (filterDate.value) {
+    params.start = `${filterDate.value}T00:00:00`
+    params.end = `${filterDate.value}T23:59:59`
+  }
+  const data = await api.get<Paginated<Workout>>('/workouts', params)
+  reports.workouts = data.items
+  reports.workoutTotal = data.total
+}
+
+watch(filterDate, () => loadWorkoutList())
+
 onMounted(async () => {
-  await reports.loadHistory()
+  await loadWorkoutList()
   await reports.loadDashboard().catch(() => {})
   await exercises.load().catch(() => {})
   for (const ex of exercises.items) {
@@ -87,7 +106,14 @@ async function copyReport() {
       <button class="btn-ghost" :class="{ 'text-[var(--accent)]': tab === 'weekly' }" @click="tab = 'weekly'">Weekly</button>
       <button class="btn-ghost" :class="{ 'text-[var(--accent)]': tab === 'monthly' }" @click="tab = 'monthly'">Monthly</button>
     </div>
+    <p v-if="filterDate" class="text-sm text-[var(--muted)]">
+      Showing sessions on {{ filterDate }}.
+      <NuxtLink to="/history" class="text-[var(--accent)]">Clear</NuxtLink>
+    </p>
     <div v-if="tab === 'workouts'" class="grid gap-2">
+      <p v-if="filterDate && !reports.workouts.length" class="text-sm text-[var(--muted)]">
+        No sessions on this day.
+      </p>
       <button v-for="w in reports.workouts" :key="w.id" class="card p-4 text-left" @click="selected = w.id">
         <p class="font-semibold">{{ w.name || 'Workout' }}</p>
         <WorkoutSessionMeta :workout="w" />
