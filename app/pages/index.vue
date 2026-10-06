@@ -3,9 +3,15 @@ const reports = useReportStore();
 const units = useUnits();
 const ready = ref(false);
 
-onMounted(async () => {
+async function refreshDashboard() {
   await reports.loadDashboard().catch(() => {});
   ready.value = true;
+}
+
+onMounted(refreshDashboard);
+
+onActivated(() => {
+  void refreshDashboard();
 });
 
 const volumeValues = computed(() => reports.volume.map((p) => p.volume || 0));

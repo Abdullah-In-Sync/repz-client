@@ -61,6 +61,13 @@ export const useReportStore = defineStore('reports', {
       this.workouts = data.items
       this.workoutTotal = data.total
     },
+    async deleteWorkout(id: string) {
+      const api = useApi()
+      await api.del(`/workouts/${id}`)
+      this.workouts = this.workouts.filter((w) => w.id !== id)
+      this.workoutTotal = Math.max(0, this.workoutTotal - 1)
+      await this.loadDashboard()
+    },
     async loadBody() {
       const api = useApi()
       const data = await api.get<Paginated<BodyMetric>>('/body-metrics', { limit: 30, offset: 0 })

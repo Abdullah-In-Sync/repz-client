@@ -11,6 +11,7 @@ const exercises = useExerciseStore()
 const units = useUnits()
 const ui = useUiStore()
 const route = useRoute()
+const deleting = ref(false)
 const tab = ref<'workouts' | 'weekly' | 'monthly'>('workouts')
 const selected = ref<string | null>(null)
 const filterDate = computed(() => {
@@ -96,6 +97,23 @@ async function copyReport() {
     ui.pushToast('Could not copy report')
   }
 }
+
+async function deleteSession(workout: Workout) {
+  const label = workout.name || 'Workout'
+  if (!confirm(`Delete "${label}"? This removes its sets, volume, and calendar entry. This cannot be undone.`)) {
+    return
+  }
+  deleting.value = true
+  try {
+    await reports.deleteWorkout(workout.id)
+    if (selected.value === workout.id) selected.value = null
+    ui.pushToast('Session deleted')
+  } catch {
+    ui.pushToast('Could not delete session')
+  } finally {
+    deleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -114,10 +132,21 @@ async function copyReport() {
       <p v-if="filterDate && !reports.workouts.length" class="text-sm text-[var(--muted)]">
         No sessions on this day.
       </p>
-      <button v-for="w in reports.workouts" :key="w.id" class="card p-4 text-left" @click="selected = w.id">
-        <p class="font-semibold">{{ w.name || 'Workout' }}</p>
-        <WorkoutSessionMeta :workout="w" />
-      </button>
+      <div v-for="w in reports.workouts" :key="w.id" class="card flex items-start gap-2 p-4">
+        <button type="button" class="min-w-0 flex-1 text-left" @click="selected = w.id">
+          <p class="font-semibold">{{ w.name || 'Workout' }}</p>
+          <WorkoutSessionMeta :workout="w" />
+        </button>
+        <button
+          type="button"
+          class="btn-ghost shrink-0 text-red-400"
+          :disabled="deleting"
+          aria-label="Delete session"
+          @click="deleteSession(w)"
+        >
+          <Icon name="lucide:trash-2" class="size-4" aria-hidden="true" />
+        </button>
+      </div>
     </div>
     <div v-else class="card p-4">
       <p>Volume: {{ Math.round((tab === 'weekly' ? reports.weekly?.total_volume : reports.monthly?.total_volume) || 0) }} kg</p>
@@ -127,12 +156,25 @@ async function copyReport() {
       <div class="card mx-auto max-h-[min(90vh,720px)] max-w-lg overflow-y-auto p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <h2 class="display text-3xl">{{ detail.name || 'Workout' }}</h2>
-          <button type="button" class="btn-ghost shrink-0 text-sm" @click="copyReport">
-            <span class="inline-flex items-center gap-1.5">
-              <Icon name="lucide:copy" class="size-4" aria-hidden="true" />
-              Copy report
-            </span>
-          </button>
+          <div class="flex shrink-0 flex-wrap items-center gap-1">
+            <button type="button" class="btn-ghost text-sm" @click="copyReport">
+              <span class="inline-flex items-center gap-1.5">
+                <Icon name="lucide:copy" class="size-4" aria-hidden="true" />
+                Copy report
+              </span>
+            </button>
+            <button
+              type="button"
+              class="btn-ghost text-sm text-red-400"
+              :disabled="deleting"
+              @click="detail && deleteSession(detail)"
+            >
+              <span class="inline-flex items-center gap-1.5">
+                <Icon name="lucide:trash-2" class="size-4" aria-hidden="true" />
+                Delete
+              </span>
+            </button>
+          </div>
         </div>
         <WorkoutSessionMeta :workout="detail" />
         <div class="mt-5 space-y-5">
