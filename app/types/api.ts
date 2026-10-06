@@ -187,6 +187,42 @@ export interface MuscleShare {
   percent: number
 }
 
+export interface PeriodSummary {
+  start: string
+  end: string
+  total_volume: number
+  total_sets: number
+  duration_seconds: number
+  workout_days: number
+}
+
+export interface MuscleDistributionDetail {
+  range: string
+  current: MuscleShare[]
+  previous: MuscleShare[]
+  current_summary: PeriodSummary
+  previous_summary: PeriodSummary
+}
+
+export type ReportRange = '7d' | '30d' | '90d' | '1y'
+
+export interface PeriodSummary {
+  start: string
+  end: string
+  total_volume: number
+  total_sets: number
+  duration_seconds: number
+  workout_days: number
+}
+
+export interface MuscleDistributionDetail {
+  range: string
+  current: MuscleShare[]
+  previous: MuscleShare[]
+  current_summary: PeriodSummary
+  previous_summary: PeriodSummary
+}
+
 export interface Achievement {
   id: string
   type: string
