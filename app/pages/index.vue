@@ -137,7 +137,15 @@ const muscleMax = computed(() =>
             class="card w-[168px] shrink-0 p-4 sm:w-[180px]"
           >
             <p class="text-xs text-[var(--success)]">Unlocked</p>
-            <p class="truncate font-semibold">{{ a.type }}</p>
+            <p class="truncate font-semibold">
+              {{ formatAchievementType(a.type) }}
+            </p>
+            <p
+              v-if="formatAchievementHint(a.type, a.metadata)"
+              class="truncate text-sm text-[var(--muted)]"
+            >
+              {{ formatAchievementHint(a.type, a.metadata) }}
+            </p>
           </article>
         </div>
       </div>
