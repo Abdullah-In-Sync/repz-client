@@ -39,7 +39,7 @@ export const useApi = () => {
     } catch (error: unknown) {
       const err = error as {
         status?: number
-        data?: { detail?: string }
+        data?: { detail?: string | Array<{ msg?: string }> }
         message?: string
         cause?: { message?: string }
       }

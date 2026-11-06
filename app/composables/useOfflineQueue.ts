@@ -4,7 +4,16 @@ const KEY = 'repz-offline-sets'
 
 export interface QueuedSet {
   workoutId: string
-  payload: Omit<DraftSet, 'localId' | 'serverId' | 'exercise_name' | 'is_time_based' | 'is_distance_based'>
+  payload: Omit<
+    DraftSet,
+    | 'localId'
+    | 'serverId'
+    | 'exercise_name'
+    | 'is_time_based'
+    | 'is_distance_based'
+    | 'is_load_based'
+    | 'is_reps_based'
+  >
 }
 
 export const useOfflineQueue = () => {
