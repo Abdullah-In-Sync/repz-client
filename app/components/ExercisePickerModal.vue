@@ -31,6 +31,12 @@ const total = ref(0)
 const offset = ref(0)
 const loading = ref(false)
 const creating = ref(false)
+const customTracking = reactive({
+  is_reps_based: true,
+  is_load_based: true,
+  is_time_based: false,
+  is_distance_based: false,
+})
 const showEquipmentPicker = ref(false)
 const showMusclePicker = ref(false)
 const failedImages = ref<Set<string>>(new Set())
@@ -151,6 +157,10 @@ watch(
       equipmentFilter.value = null
       muscleFilter.value = null
       creating.value = false
+      customTracking.is_reps_based = true
+      customTracking.is_load_based = true
+      customTracking.is_time_based = false
+      customTracking.is_distance_based = false
       failedImages.value = new Set()
       load(true)
     }
@@ -185,6 +195,10 @@ async function addCustom() {
   try {
     const created = await exercises.createCustom({
       name,
+      is_reps_based: customTracking.is_reps_based,
+      is_load_based: customTracking.is_load_based,
+      is_time_based: customTracking.is_time_based,
+      is_distance_based: customTracking.is_distance_based,
       ...(equipmentFilter.value ? { equipment: equipmentFilter.value } : {}),
       ...(muscleFilter.value ? { target: muscleFilter.value } : {}),
     })
@@ -277,6 +291,24 @@ function imageFailed(id: string) {
               <p v-if="customFilterSummary" class="mt-2 text-xs text-[var(--muted)]">
                 {{ customFilterSummary }}
               </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--muted)]">
+                <label class="flex items-center gap-2">
+                  <input v-model="customTracking.is_reps_based" type="checkbox" :disabled="creating" />
+                  Reps
+                </label>
+                <label class="flex items-center gap-2">
+                  <input v-model="customTracking.is_load_based" type="checkbox" :disabled="creating" />
+                  Load
+                </label>
+                <label class="flex items-center gap-2">
+                  <input v-model="customTracking.is_time_based" type="checkbox" :disabled="creating" />
+                  Time
+                </label>
+                <label class="flex items-center gap-2">
+                  <input v-model="customTracking.is_distance_based" type="checkbox" :disabled="creating" />
+                  Distance
+                </label>
+              </div>
               <button
                 type="submit"
                 class="btn-primary mt-3 w-full"
