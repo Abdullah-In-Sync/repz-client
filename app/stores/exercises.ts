@@ -54,7 +54,10 @@ export const useExerciseStore = defineStore('exercises', {
     },
     async createCustom(payload: Partial<Exercise> & { name: string }) {
       const api = useApi()
-      return api.post<Exercise>('/exercises/custom', payload)
+      return api.post<Exercise>('/exercises/custom', {
+        is_load_based: true,
+        ...payload,
+      })
     },
     async update(id: string, payload: Partial<Exercise>) {
       const api = useApi()

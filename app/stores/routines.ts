@@ -1,8 +1,8 @@
-import type { LastLoggedSet, Routine, RoutineExercise } from '~/types/api'
+import type { LastLoggedSet, Routine, RoutineExercise, RoutineListItem } from '~/types/api'
 
 export const useRoutineStore = defineStore('routines', {
   state: () => ({
-    items: [] as Routine[],
+    items: [] as RoutineListItem[],
     draft: null as null | {
       id?: string
       name: string
@@ -14,7 +14,7 @@ export const useRoutineStore = defineStore('routines', {
   actions: {
     async load() {
       const api = useApi()
-      this.items = await api.get<Routine[]>('/routines')
+      this.items = await api.get<RoutineListItem[]>('/routines/summary')
     },
     async getOne(id: string) {
       const api = useApi()
@@ -43,6 +43,8 @@ export const useRoutineStore = defineStore('routines', {
               reps_range: set.reps_range ?? null,
               weight_kg: set.weight_kg ?? null,
               rest_seconds: set.rest_seconds ?? null,
+              duration_seconds: set.duration_seconds ?? null,
+              distance_km: set.distance_km ?? null,
             }))
           : null
         const firstSet = setTargets?.[0]
@@ -53,8 +55,8 @@ export const useRoutineStore = defineStore('routines', {
           order_index: i,
           target_sets: targetSets,
           target_reps_range: firstSet?.reps_range ?? e.target_reps_range,
-          target_duration_seconds: e.target_duration_seconds,
-          target_distance_km: e.target_distance_km,
+          target_duration_seconds: firstSet?.duration_seconds ?? e.target_duration_seconds,
+          target_distance_km: firstSet?.distance_km ?? e.target_distance_km,
           target_weight_kg: firstSet?.weight_kg ?? e.target_weight_kg,
           rest_seconds: firstSet?.rest_seconds ?? e.rest_seconds,
           notes: e.notes,

@@ -3,9 +3,15 @@ const reports = useReportStore();
 const units = useUnits();
 const ready = ref(false);
 
-onMounted(async () => {
+async function refreshDashboard() {
   await reports.loadDashboard().catch(() => {});
   ready.value = true;
+}
+
+onMounted(refreshDashboard);
+
+onActivated(() => {
+  void refreshDashboard();
 });
 
 const volumeValues = computed(() => reports.volume.map((p) => p.volume || 0));
@@ -131,7 +137,15 @@ const muscleMax = computed(() =>
             class="card w-[168px] shrink-0 p-4 sm:w-[180px]"
           >
             <p class="text-xs text-[var(--success)]">Unlocked</p>
-            <p class="truncate font-semibold">{{ a.type }}</p>
+            <p class="truncate font-semibold">
+              {{ formatAchievementType(a.type) }}
+            </p>
+            <p
+              v-if="formatAchievementHint(a.type, a.metadata)"
+              class="truncate text-sm text-[var(--muted)]"
+            >
+              {{ formatAchievementHint(a.type, a.metadata) }}
+            </p>
           </article>
         </div>
       </div>

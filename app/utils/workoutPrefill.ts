@@ -108,7 +108,11 @@ export function prefillSetFields(opts: {
     weight_kg: setTarget?.weight_kg ?? plan?.target_weight_kg ?? null,
     reps: parseRepsFromRange(repsRange),
     rpe: null as number | null,
-    duration_seconds: isTimeBased ? (plan?.target_duration_seconds ?? defaultDurationSeconds) : null,
-    distance_km: isDistanceBased ? (plan?.target_distance_km ?? null) : null,
+    duration_seconds: isTimeBased
+      ? (setTarget?.duration_seconds ?? plan?.target_duration_seconds ?? defaultDurationSeconds)
+      : null,
+    distance_km: isDistanceBased
+      ? (setTarget?.distance_km ?? plan?.target_distance_km ?? null)
+      : null,
   }
 }

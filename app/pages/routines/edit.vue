@@ -42,10 +42,21 @@ async function ensureExercise(id: string): Promise<Exercise | undefined> {
   }
 }
 
+function cardioSetDefaults(item: RoutineExercise, ex?: Exercise): RoutineSetTarget {
+  const resolved = ex ?? exerciseFor(item.exercise_id)
+  return {
+    reps_range: null,
+    weight_kg: null,
+    rest_seconds: item.rest_seconds ?? 60,
+    duration_seconds: resolved?.is_time_based ? (item.target_duration_seconds ?? 1200) : null,
+    distance_km: resolved?.is_distance_based ? (item.target_distance_km ?? 3) : null,
+  }
+}
+
 function newLine(exerciseId: string, orderIndex: number, ex?: Exercise): RoutineExercise {
   const resolved = ex ?? exerciseFor(exerciseId)
   const cardio = resolved && (resolved.is_time_based || resolved.is_distance_based)
-  return {
+  const line: RoutineExercise = {
     exercise_id: exerciseId,
     order_index: orderIndex,
     target_sets: 1,
@@ -55,15 +66,32 @@ function newLine(exerciseId: string, orderIndex: number, ex?: Exercise): Routine
     target_weight_kg: null,
     rest_seconds: cardio ? 60 : 90,
     notes: null,
-    set_targets: cardio
-      ? null
-      : [{ reps_range: '8-12', weight_kg: null, rest_seconds: 90 }],
+    set_targets: null,
     exercise_name: resolved?.name,
   }
+  if (cardio) {
+    line.set_targets = [cardioSetDefaults(line, resolved)]
+  } else {
+    line.set_targets = [{ reps_range: '8-12', weight_kg: null, rest_seconds: 90 }]
+  }
+  return line
 }
 
 function ensureSetTargets(item: RoutineExercise) {
-  if (isCardio(item.exercise_id)) return
+  const ex = exerciseFor(item.exercise_id)
+  if (isCardio(item.exercise_id)) {
+    if (!item.set_targets?.length) {
+      const count = Math.max(1, item.target_sets || 1)
+      const template = cardioSetDefaults(item, ex)
+      item.set_targets = Array.from({ length: count }, () => ({ ...template }))
+    }
+    item.target_sets = item.set_targets.length
+    const first = item.set_targets[0]
+    if (first?.duration_seconds != null) item.target_duration_seconds = first.duration_seconds
+    if (first?.distance_km != null) item.target_distance_km = first.distance_km
+    if (first?.rest_seconds != null) item.rest_seconds = first.rest_seconds
+    return
+  }
   if (!item.set_targets?.length) {
     const count = Math.max(1, item.target_sets || 1)
     item.set_targets = Array.from({ length: count }, () => ({
@@ -78,11 +106,21 @@ function ensureSetTargets(item: RoutineExercise) {
 function addSet(item: RoutineExercise) {
   ensureSetTargets(item)
   const previous = item.set_targets?.at(-1)
-  item.set_targets?.push({
-    reps_range: previous?.reps_range ?? '8-12',
-    weight_kg: previous?.weight_kg ?? null,
-    rest_seconds: previous?.rest_seconds ?? 90,
-  })
+  if (isCardio(item.exercise_id)) {
+    item.set_targets?.push({
+      reps_range: null,
+      weight_kg: null,
+      rest_seconds: previous?.rest_seconds ?? item.rest_seconds ?? 60,
+      duration_seconds: previous?.duration_seconds ?? item.target_duration_seconds ?? null,
+      distance_km: previous?.distance_km ?? item.target_distance_km ?? null,
+    })
+  } else {
+    item.set_targets?.push({
+      reps_range: previous?.reps_range ?? '8-12',
+      weight_kg: previous?.weight_kg ?? null,
+      rest_seconds: previous?.rest_seconds ?? 90,
+    })
+  }
   item.target_sets = item.set_targets?.length || 1
 }
 
@@ -104,7 +142,6 @@ function updateSetWeight(set: RoutineSetTarget, event: Event) {
 function fixStrengthDefaultsOnCardio(item: RoutineExercise, ex: Exercise) {
   if (!ex.is_time_based && !ex.is_distance_based) return
   if (item.target_reps_range !== '8-12' && item.target_reps_range != null) return
-  item.target_sets = 1
   item.target_reps_range = null
   if (ex.is_time_based && !item.target_duration_seconds) item.target_duration_seconds = 1200
   if (ex.is_distance_based && item.target_distance_km == null) item.target_distance_km = 3
@@ -324,26 +361,71 @@ async function save() {
 
         <!-- Cardio targets -->
         <template v-if="isCardio(item.exercise_id)">
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <label v-if="exerciseFor(item.exercise_id)?.is_time_based" class="text-xs">
-              Target time (mm:ss)
-              <DurationInput v-model="item.target_duration_seconds" placeholder="20:00" />
-            </label>
-            <label v-if="exerciseFor(item.exercise_id)?.is_distance_based" class="text-xs">
-              Target distance (km)
+          <div
+            class="mt-4 grid gap-2 px-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]"
+            :class="
+              exerciseFor(item.exercise_id)?.is_time_based &&
+                exerciseFor(item.exercise_id)?.is_distance_based
+                ? 'grid-cols-[48px_1fr_1fr_1fr]'
+                : 'grid-cols-[48px_1fr_1fr]'
+            "
+          >
+            <span>Set</span>
+            <span v-if="exerciseFor(item.exercise_id)?.is_time_based">Time (mm:ss)</span>
+            <span v-if="exerciseFor(item.exercise_id)?.is_distance_based">Distance (km)</span>
+            <span>Rest (s)</span>
+          </div>
+
+          <div
+            v-for="(set, setIndex) in item.set_targets"
+            :key="setIndex"
+            class="mt-2 grid gap-2"
+            :class="
+              exerciseFor(item.exercise_id)?.is_time_based &&
+                exerciseFor(item.exercise_id)?.is_distance_based
+                ? 'grid-cols-[48px_1fr_1fr_1fr]'
+                : 'grid-cols-[48px_1fr_1fr]'
+            "
+          >
+            <div class="grid h-11 place-items-center rounded-lg bg-[var(--surface)] font-semibold">
+              {{ setIndex + 1 }}
+            </div>
+            <DurationInput
+              v-if="exerciseFor(item.exercise_id)?.is_time_based"
+              v-model="set.duration_seconds"
+              input-class="input h-11 text-center tabular-nums"
+              placeholder="20:00"
+            />
+            <input
+              v-if="exerciseFor(item.exercise_id)?.is_distance_based"
+              v-model.number="set.distance_km"
+              class="input h-11 text-center tabular-nums"
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="3"
+            />
+            <div class="relative">
               <input
-                v-model.number="item.target_distance_km"
-                class="input mt-1"
+                v-model.number="set.rest_seconds"
                 type="number"
                 min="0"
-                step="0.1"
-                placeholder="3"
+                class="input h-11 text-center"
+                placeholder="60"
               />
-            </label>
+              <button
+                v-if="(item.set_targets?.length || 0) > 1"
+                type="button"
+                class="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full bg-[var(--warn)] text-xs text-black"
+                aria-label="Remove set"
+                @click="removeSet(item, setIndex)"
+              >×</button>
+            </div>
           </div>
-          <p class="mt-2 text-xs text-[var(--muted)]">
-            Live workouts will show time and distance fields instead of reps and weight.
-          </p>
+
+          <button type="button" class="btn-ghost mt-3 w-full" @click="addSet(item)">
+            + Add set
+          </button>
         </template>
 
         <!-- Strength targets -->
