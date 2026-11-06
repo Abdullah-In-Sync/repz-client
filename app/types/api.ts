@@ -83,6 +83,13 @@ export interface RoutineExercise {
   exercise_name?: string | null
 }
 
+export interface RoutineListItem {
+  id: string
+  name: string
+  exercise_count: number
+  updated_at: string
+}
+
 export interface Routine {
   id: string
   user_id: string

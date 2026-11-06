@@ -1,8 +1,8 @@
-import type { LastLoggedSet, Routine, RoutineExercise } from '~/types/api'
+import type { LastLoggedSet, Routine, RoutineExercise, RoutineListItem } from '~/types/api'
 
 export const useRoutineStore = defineStore('routines', {
   state: () => ({
-    items: [] as Routine[],
+    items: [] as RoutineListItem[],
     draft: null as null | {
       id?: string
       name: string
@@ -14,7 +14,7 @@ export const useRoutineStore = defineStore('routines', {
   actions: {
     async load() {
       const api = useApi()
-      this.items = await api.get<Routine[]>('/routines')
+      this.items = await api.get<RoutineListItem[]>('/routines/summary')
     },
     async getOne(id: string) {
       const api = useApi()

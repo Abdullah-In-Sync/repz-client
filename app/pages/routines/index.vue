@@ -39,7 +39,7 @@ async function startRoutine(id: string) {
     <div class="grid gap-3 lg:grid-cols-2">
       <article v-for="r in store.items" :key="r.id" class="card p-4">
         <h2 class="text-xl font-semibold">{{ r.name }}</h2>
-        <p class="text-sm text-[var(--muted)]">{{ r.exercises.length }} exercises</p>
+        <p class="text-sm text-[var(--muted)]">{{ r.exercise_count }} exercises</p>
         <div class="mt-4 flex gap-2">
           <button class="btn-primary" @click="startRoutine(r.id)">Start</button>
           <NuxtLink :to="`/routines/edit?id=${r.id}`" class="btn-ghost">Edit</NuxtLink>
