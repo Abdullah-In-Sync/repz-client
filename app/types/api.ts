@@ -64,6 +64,8 @@ export interface RoutineSetTarget {
   reps_range: string | null
   weight_kg: number | null
   rest_seconds: number | null
+  duration_seconds?: number | null
+  distance_km?: number | null
 }
 
 export interface RoutineExercise {
